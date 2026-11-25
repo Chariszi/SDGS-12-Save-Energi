@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpoonShare 12 — Community Surplus Food & Clean Energy Hub (SDG 12)</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons via CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        cream: '#FAF9F6',
+                        sdg12: {
+                            DEFAULT: '#BF8B2E',
+                            light: '#D9A84E',
+                            dark: '#996D1F',
+                            50: '#FBF7EE',
+                            100: '#F5EBD4',
+                        },
+                        forest: {
+                            DEFAULT: '#059669',
+                            light: '#10B981',
+                            dark: '#047857',
+                            50: '#ECFDF5',
+                        },
+                        slateDark: '#1E293B',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #FAF9F6;
+            color: #1E293B;
+        }
+        /* Custom Range Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 8px;
+            border-radius: 999px;
+            background: #E2E8F0;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -6px;
+            background-color: #BF8B2E;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            border: 3px solid #FFFFFF;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            transition: transform 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background-color: #996D1F;
+        }
+        input[type="range"].forest-slider::-webkit-slider-thumb {
+            background-color: #059669;
+        }
+        input[type="range"].forest-slider::-webkit-slider-thumb:hover {
+            background-color: #047857;
+        }
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-card {
+            animation: slideUpFade 0.45s ease-out forwards;
+        }
+        /* Toast Notification */
+        #toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-sdg12 selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- 1. TOP LIVE IMPACT TICKER BAR -->
+    <div class="bg-slateDark text-white text-xs py-2 px-4 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <span class="inline-flex h-2 w-2 rounded-full bg-forest-light animate-ping"></span>
+                <span class="font-semibold tracking-wide uppercase text-slate-300">Live SDG 12 Community Impact:</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-4 sm:gap-6 font-medium">
+                <span class="flex items-center gap-1.5 text-forest-light">
+                    <i data-lucide="utensils" class="w-3.5 h-3.5"></i>
+                    <span><strong id="ticker-food" class="font-display font-bold">1,428</strong> kg Food Rescued</span>
+                </span>
+                <span class="flex items-center gap-1.5 text-sdg12-light">
+                    <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                    <span><strong id="ticker-energy" class="font-display font-bold">3,890</strong> kWh Energy Conserved</span>
+                </span>
+                <span class="hidden md:flex items-center gap-1.5 text-sky-300">
+                    <i data-lucide="cloud-off" class="w-3.5 h-3.5"></i>
+                    <span><strong id="ticker-co2" class="font-display font-bold">6,412</strong> kg CO₂e Prevented</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. STICKY NAVIGATION HEADER -->
+    <header class="sticky top-0 z-40 bg-cream/90 backdrop-blur-md border-b border-stone-200/80 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16 md:h-20">
+                <!-- Brand Identity -->
+                <a href="#" class="flex items-center gap-3 group">
+                    <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-sdg12 to-forest flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
+                        <i data-lucide="sprout" class="w-6 h-6"></i>
+                        <span class="absolute -bottom-1 -right-1 bg-slateDark text-white text-[10px] font-display font-extrabold px-1.5 py-0.5 rounded-md border border-white">12</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-display font-extrabold text-slateDark text-lg md:text-xl tracking-tight">SpoonShare</span>
+                            <span class="px-1.5 py-0.5 text-[11px] font-bold rounded-md bg-sdg12/15 text-sdg12-dark">SDG 12</span>
+                        </div>
+                        <span class="text-xs text-slate-500 hidden sm:block">Food Rescue & Clean Energy Hub</span>
+                    </div>
+                </a>
+
+                <!-- Desktop Navigation -->
+                <nav class="hidden lg:flex items-center space-x-7 text-sm font-medium text-slate-600">
+                    <a href="#rescue-feed" class="hover:text-forest transition-colors flex items-center gap-1.5">
+                        <span>Rescue Feed</span>
+                        <span id="nav-feed-badge" class="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-forest/15 text-forest">6</span>
+                    </a>
+                    <a href="#impact-lab" class="hover:text-sdg12 transition-colors">Impact Lab & Simulator</a>
+                    <a href="#nexus-guide" class="hover:text-forest transition-colors">Food-Energy Nexus</a>
+                    <a href="#daily-pledges" class="hover:text-sdg12 transition-colors">Daily Pledges</a>
+                </nav>
+
+                <!-- Personal Score Pill & Quick Actions -->
+                <div class="flex items-center gap-2.5">
+                    <!-- User Personal SDG 12 Score -->
+                    <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-stone-200 shadow-xs" title="Your Personal SDG 12 Impact Score">
+                        <i data-lucide="award" class="w-4 h-4 text-sdg12"></i>
+                        <span class="text-xs text-slate-500">My Impact:</span>
+                        <span id="user-score-display" class="font-display font-extrabold text-sm text-slateDark">120 pts</span>
+                    </div>
+
+                    <button type="button" onclick="openShareModal('food')" class="hidden md:inline-flex items-center gap-1.5 bg-forest hover:bg-forest-dark text-white text-xs sm:text-sm font-semibold px-3.5 py-2.5 rounded-xl shadow-sm transition-all">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>Share Surplus Food</span>
+                    </button>
+
+                    <button type="button" onclick="openShareModal('energy')" class="hidden sm:inline-flex items-center gap-1.5 bg-sdg12 hover:bg-sdg12-dark text-white text-xs sm:text-sm font-semibold px-3.5 py-2.5 rounded-xl shadow-sm transition-all">
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                        <span>Log Energy Share</span>
+                    </button>
+
+                    <!-- Mobile Menu Toggle -->
+                    <button id="mobile-menu-btn" aria-label="Open Menu" class="lg:hidden p-2.5 rounded-xl text-slate-600 hover:bg-stone-200/60 focus:outline-none">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Menu -->
+        <div id="mobile-menu" class="hidden lg:hidden bg-white border-b border-stone-200 px-4 pt-3 pb-5 space-y-3 shadow-lg">
+            <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-cream border border-stone-200">
+                <span class="text-xs font-medium text-slate-600">Personal SDG 12 Score</span>
+                <span id="mobile-user-score" class="font-display font-extrabold text-sm text-sdg12-dark">120 pts</span>
+            </div>
+            <a href="#rescue-feed" class="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-forest-50 hover:text-forest">Live Food & Energy Feed</a>
+            <a href="#impact-lab" class="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-sdg12-50 hover:text-sdg12">Impact Lab & Simulator</a>
+            <a href="#nexus-guide" class="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-forest-50 hover:text-forest">Food-Energy-Water Nexus</a>
+            <a href="#daily-pledges" class="block px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-sdg12-50 hover:text-sdg12">Daily Pledges & Badges</a>
+            <div class="grid grid-cols-2 gap-2 pt-2">
+                <button type="button" onclick="openShareModal('food')" class="flex items-center justify-center gap-1.5 bg-forest text-white text-xs font-semibold py-3 rounded-xl">
+                    <i data-lucide="utensils" class="w-4 h-4"></i>
+                    <span>Share Food</span>
+                </button>
+                <button type="button" onclick="openShareModal('energy')" class="flex items-center justify-center gap-1.5 bg-sdg12 text-white text-xs font-semibold py-3 rounded-xl">
+                    <i data-lucide="zap" class="w-4 h-4"></i>
+                    <span>Share Energy</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 3. HERO SECTION (SPOONSHARE COMMUNITY SHARING MODEL + SDG 12) -->
+    <section class="relative overflow-hidden pt-10 pb-16 md:pt-16 md:pb-24 border-b border-stone-200/80">
+        <!-- Warm Decorative Glows -->
+        <div class="absolute top-0 right-0 -translate-y-12 translate-x-1/4 w-96 h-96 bg-sdg12/15 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 translate-y-1/3 -translate-x-1/4 w-96 h-96 bg-forest/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                <!-- Left Mission Copy -->
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="inline-flex flex-wrap items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-stone-200 shadow-xs text-xs font-semibold text-slateDark">
+                        <span class="px-2 py-0.5 rounded-full bg-forest text-white">Target 12.3</span>
+                        <span>Zero Food Waste</span>
+                        <span class="text-slate-300">•</span>
+                        <span class="px-2 py-0.5 rounded-full bg-sdg12 text-white">Target 12.c & 12.2</span>
+                        <span>Clean Energy Efficiency</span>
+                    </div>
+
+                    <h1 class="font-display font-extrabold text-3xl sm:text-5xl lg:text-[3.35rem] text-slateDark tracking-tight leading-[1.13]">
+                        Share Surplus Food. <br class="hidden sm:inline">
+                        <span class="text-forest">Conserve Clean Energy.</span> <br class="hidden sm:inline">
+                        <span class="text-sdg12">Power SDG 12 Together.</span>
+                    </h1>
+
+                    <p class="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
+                        Inspired by SpoonShare’s hyper-local community rescue network, <strong>SpoonShare 12</strong> connects neighbors, bakeries, and community kitchens to rescue surplus meals while sharing clean energy hubs, eco-cooking tools, and low-carbon habits.
+                    </p>
+
+                    <!-- Dual Quick-Action CTAs -->
+                    <div class="flex flex-col sm:flex-row gap-3.5 pt-2">
+                        <a href="#rescue-feed" class="inline-flex justify-center items-center gap-2.5 bg-forest hover:bg-forest-dark text-white font-semibold px-6 py-4 rounded-2xl shadow-lg shadow-forest/20 transition-all transform hover:-translate-y-0.5">
+                            <i data-lucide="hand-heart" class="w-5 h-5"></i>
+                            <span>Explore Live Rescue Feed</span>
+                        </a>
+                        <button type="button" onclick="openShareModal('food')" class="inline-flex justify-center items-center gap-2.5 bg-white hover:bg-sdg12-50 text-slateDark border-2 border-sdg12/40 font-semibold px-6 py-4 rounded-2xl transition-all">
+                            <i data-lucide="plus" class="w-5 h-5 text-sdg12"></i>
+                            <span>Post a Food or Energy Share</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Dual-Nexus Impact Card -->
+                <div class="lg:col-span-5">
+                    <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-stone-200/80 space-y-6">
+                        <div class="flex items-center justify-between border-b border-stone-100 pb-4">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-sdg12">The Hidden Connection</span>
+                                <h2 class="font-display font-bold text-lg text-slateDark mt-0.5">Why Food & Energy Belong Together</h2>
+                            </div>
+                            <div class="w-11 h-11 rounded-2xl bg-sdg12-50 text-sdg12 flex items-center justify-center">
+                                <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- Fact 1 -->
+                            <div class="p-4 rounded-2xl bg-forest-50/70 border border-forest/15 flex items-start gap-3.5">
+                                <div class="p-2.5 rounded-xl bg-forest text-white shrink-0">
+                                    <i data-lucide="utensils-crossed" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-baseline gap-2">
+                                        <span class="font-display font-extrabold text-xl text-slateDark">1/3 of All Food</span>
+                                        <span class="text-xs font-semibold text-forest">SDG 12.3</span>
+                                    </div>
+                                    <p class="text-xs sm:text-sm text-slate-600 mt-1">
+                                        Globally wasted each year—wasting <strong>30% of global agricultural energy</strong> used in farming, cold-chain refrigeration, and transport.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Fact 2 -->
+                            <div class="p-4 rounded-2xl bg-sdg12-50/80 border border-sdg12/20 flex items-start gap-3.5">
+                                <div class="p-2.5 rounded-xl bg-sdg12 text-white shrink-0">
+                                    <i data-lucide="flame" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-baseline gap-2">
+                                        <span class="font-display font-extrabold text-xl text-slateDark">8–10% of Emissions</span>
+                                        <span class="text-xs font-semibold text-sdg12-dark">SDG 12.c</span>
+                                    </div>
+                                    <p class="text-xs sm:text-sm text-slate-600 mt-1">
+                                        Come from food loss and inefficient fossil-fuel energy use. Rescuing surplus meals and shifting to clean cooking cuts emissions immediately.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Community Mini Counters -->
+                        <div class="grid grid-cols-3 gap-2 pt-2 border-t border-stone-100 text-center">
+                            <div class="p-2">
+                                <span class="font-display font-extrabold text-lg sm:text-xl text-forest block">3,570</span>
+                                <span class="text-[11px] text-slate-500">Meals Shared</span>
+                            </div>
+                            <div class="p-2 border-x border-stone-100">
+                                <span class="font-display font-extrabold text-lg sm:text-xl text-sdg12 block">48 Hubs</span>
+                                <span class="text-[11px] text-slate-500">Solar & Eco-Kitchens</span>
+                            </div>
+                            <div class="p-2">
+                                <span class="font-display font-extrabold text-lg sm:text-xl text-slateDark block">94%</span>
+                                <span class="text-[11px] text-slate-500">Claim Rate &lt;2h</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. INTERACTIVE 'FOOD & ENERGY RESCUE FEED' (SPOONSHARE LIVE BOARD) -->
+    <section id="rescue-feed" class="py-16 md:py-24 bg-white border-b border-stone-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Section Header & Controls -->
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-forest-50 text-forest text-xs font-bold uppercase tracking-wider mb-2">
+                        <span class="w-2 h-2 rounded-full bg-forest animate-pulse"></span>
+                        <span>Hyper-Local Community Board</span>
+                    </div>
+                    <h2 class="font-display font-extrabold text-2xl sm:text-4xl text-slateDark">
+                        Food & Energy Rescue Feed
+                    </h2>
+                    <p class="text-slate-600 mt-2 text-sm sm:text-base max-w-2xl">
+                        Claim surplus food before it spoils or reserve neighborhood clean-energy resources. Every claim boosts your SDG 12 Impact Score.
+                    </p>
+                </div>
+
+                <!-- Filter Pills & Post Button -->
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <div class="inline-flex p-1 rounded-2xl bg-cream border border-stone-200" id="feed-filters">
+                        <button type="button" data-filter="all" class="feed-filter-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slateDark text-white shadow-xs transition-all">
+                            All Shares (<span id="count-all">6</span>)
+                        </button>
+                        <button type="button" data-filter="food" class="feed-filter-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-forest transition-all flex items-center gap-1.5">
+                            <i data-lucide="utensils" class="w-3.5 h-3.5 text-forest"></i>
+                            <span>Surplus Food (<span id="count-food">3</span>)</span>
+                        </button>
+                        <button type="button" data-filter="energy" class="feed-filter-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-sdg12 transition-all flex items-center gap-1.5">
+                            <i data-lucide="zap" class="w-3.5 h-3.5 text-sdg12"></i>
+                            <span>Clean Energy (<span id="count-energy">3</span>)</span>
+                        </button>
+                    </div>
+
+                    <button type="button" onclick="openShareModal('food')" class="inline-flex items-center gap-2 bg-sdg12 hover:bg-sdg12-dark text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-2xl shadow-sm transition-all">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Post a Share</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Cards Grid -->
+            <div id="rescue-feed-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Rendered dynamically via JavaScript -->
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. DUAL SDG 12 IMPACT CALCULATOR & SIMULATOR -->
+    <section id="impact-lab" class="py-16 md:py-24 bg-cream border-b border-stone-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl mx-auto text-center mb-10">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sdg12/15 text-sdg12-dark text-xs font-bold uppercase tracking-wider">
+                    <i data-lucide="sliders" class="w-3.5 h-3.5"></i> Dual SDG 12 Impact Lab
+                </span>
+                <h2 class="font-display font-extrabold text-2xl sm:text-4xl text-slateDark mt-2">
+                    Calculate Your Food & Energy Footprint
+                </h2>
+                <p class="text-slate-600 mt-3 text-base">
+                    Switch between our Food Waste & Cold-Chain Calculator and Household Kitchen Energy Simulator to uncover hidden resource savings.
+                </p>
+
+                <!-- Main Dual Lab Switcher -->
+                <div class="inline-flex p-1.5 rounded-2xl bg-white border border-stone-200 shadow-sm mt-6">
+                    <button type="button" id="tab-food-calc" class="lab-tab-btn px-5 py-3 rounded-xl text-xs sm:text-sm font-bold bg-forest text-white shadow-sm transition-all flex items-center gap-2">
+                        <i data-lucide="apple" class="w-4 h-4"></i>
+                        <span>1. Food Waste & Cold-Chain Energy</span>
+                    </button>
+                    <button type="button" id="tab-energy-sim" class="lab-tab-btn px-5 py-3 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-sdg12 transition-all flex items-center gap-2">
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                        <span>2. Kitchen & Appliance Simulator</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 1: FOOD WASTE & COLD-CHAIN ENERGY CALCULATOR -->
+            <div id="panel-food-calc" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <!-- Inputs -->
+                <div class="lg:col-span-7 bg-white rounded-3xl p-6 sm:p-8 shadow-md border border-stone-200/80 space-y-7">
+                    <!-- Weekly Food Rescued / Prevented Waste -->
+                    <div class="space-y-2.5">
+                        <div class="flex justify-between items-center">
+                            <label for="slider-food-kg" class="font-display font-bold text-slateDark flex items-center gap-2">
+                                <i data-lucide="shopping-bag" class="w-5 h-5 text-forest"></i>
+                                <span>Surplus Food Rescued / Waste Prevented per Week</span>
+                            </label>
+                            <span class="font-display font-extrabold text-forest text-lg"><span id="val-food-kg">3.5</span> kg/wk</span>
+                        </div>
+                        <input type="range" id="slider-food-kg" min="0.5" max="25" step="0.5" value="3.5" class="w-full forest-slider">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>0.5 kg (Solo)</span>
+                            <span>5 kg (Family)</span>
+                            <span>25 kg (Cafe / Community Kitchen)</span>
+                        </div>
+                    </div>
+
+                    <hr class="border-stone-100">
+
+                    <!-- Primary Food Category -->
+                    <div>
+                        <label class="font-display font-bold text-slateDark flex items-center gap-2 mb-3">
+                            <i data-lucide="layers" class="w-5 h-5 text-sdg12"></i>
+                            <span>Primary Food Type Rescued</span>
+                        </label>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="food-type-options">
+                            <button type="button" data-type="produce" data-co2-factor="2.5" data-kwh-factor="3.2" data-water-factor="850" data-cost-factor="4.2" class="food-type-btn p-3.5 rounded-2xl border-2 border-forest bg-forest-50/70 text-left transition-all">
+                                <div class="font-bold text-sm text-slateDark flex items-center justify-between">
+                                    <span>Fresh Produce & Bread</span>
+                                    <i data-lucide="carrot" class="w-4 h-4 text-forest"></i>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">Moderate cold-chain & irrigation energy</p>
+                            </button>
+
+                            <button type="button" data-type="meals" data-co2-factor="4.8" data-kwh-factor="6.5" data-water-factor="1600" data-cost-factor="7.5" class="food-type-btn p-3.5 rounded-2xl border-2 border-stone-200 hover:border-forest/50 bg-white text-left transition-all">
+                                <div class="font-bold text-sm text-slateDark flex items-center justify-between">
+                                    <span>Cooked Mixed Meals</span>
+                                    <i data-lucide="soup" class="w-4 h-4 text-sdg12"></i>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">Includes cooking fuel & refrigeration</p>
+                            </button>
+
+                            <button type="button" data-type="dairy-meat" data-co2-factor="12.5" data-kwh-factor="14.0" data-water-factor="4200" data-cost-factor="13.0" class="food-type-btn p-3.5 rounded-2xl border-2 border-stone-200 hover:border-forest/50 bg-white text-left transition-all">
+                                <div class="font-bold text-sm text-slateDark flex items-center justify-between">
+                                    <span>Dairy & Protein Items</span>
+                                    <i data-lucide="milk" class="w-4 h-4 text-rose-500"></i>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">High cold-chain & production footprint</p>
+                            </button>
+                        </div>
+                    </div>
+
+                    <hr class="border-stone-100">
+
+                    <!-- Storage & Preservation Method -->
+                    <div>
+                        <label class="font-display font-bold text-slateDark flex items-center gap-2 mb-3">
+                            <i data-lucide="thermometer-snowflake" class="w-5 h-5 text-sky-500"></i>
+                            <span>Storage & Sharing Habits</span>
+                        </label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-stone-200 cursor-pointer hover:bg-cream transition-colors">
+                                <input type="checkbox" id="chk-fifo" checked class="w-5 h-5 accent-forest rounded">
+                                <div class="text-sm">
+                                    <span class="font-semibold text-slateDark block">First-In, First-Out (FIFO) Pantry</span>
+                                    <span class="text-xs text-slate-500">+15% extra spoilage prevention</span>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-stone-200 cursor-pointer hover:bg-cream transition-colors">
+                                <input type="checkbox" id="chk-fridge-opt" checked class="w-5 h-5 accent-forest rounded">
+                                <div class="text-sm">
+                                    <span class="font-semibold text-slateDark block">Optimal Fridge Temp (3°C–4°C)</span>
+                                    <span class="text-xs text-slate-500">Extends freshness & cuts compressor load</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Food Calculator Output Panel -->
+                <div class="lg:col-span-5 bg-slateDark text-white rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+                    <div class="flex items-center justify-between border-b border-slate-700 pb-4">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-forest-light">Annualized SDG 12.3 Impact</span>
+                            <h3 class="font-display font-bold text-xl mt-0.5">Hidden Resources Saved</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-forest/20 border border-forest/40 text-forest-light flex items-center justify-center">
+                            <i data-lucide="sprout" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3.5">
+                        <div class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700">
+                            <span class="text-xs text-slate-400 block">Food Saved / Year</span>
+                            <span class="font-display font-extrabold text-2xl text-forest-light mt-1 block"><span id="out-food-year">209</span> kg</span>
+                            <span class="text-[11px] text-slate-400 mt-0.5 block">~<span id="out-meals-year">522</span> full meals</span>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700">
+                            <span class="text-xs text-slate-400 block">Grocery Money Saved</span>
+                            <span class="font-display font-extrabold text-2xl text-white mt-1 block">$<span id="out-food-money">878</span></span>
+                            <span class="text-[11px] text-slate-400 mt-0.5 block">Household budget kept</span>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700">
+                            <span class="text-xs text-slate-400 flex items-center gap-1">
+                                <i data-lucide="zap" class="w-3.5 h-3.5 text-sdg12-light"></i>
+                                <span>Embodied Energy Saved</span>
+                            </span>
+                            <span class="font-display font-extrabold text-2xl text-sdg12-light mt-1 block"><span id="out-food-kwh">669</span> kWh</span>
+                            <span class="text-[11px] text-slate-400 mt-0.5 block">Farm-to-fridge electricity</span>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700">
+                            <span class="text-xs text-slate-400 flex items-center gap-1">
+                                <i data-lucide="droplets" class="w-3.5 h-3.5 text-sky-400"></i>
+                                <span>Water & CO₂e Saved</span>
+                            </span>
+                            <span class="font-display font-extrabold text-xl text-sky-300 mt-1 block"><span id="out-food-water">177k</span> L</span>
+                            <span class="text-[11px] text-emerald-400 mt-0.5 block"><span id="out-food-co2">523</span> kg CO₂e avoided</span>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-forest/15 border border-forest/30 text-xs text-slate-200 leading-relaxed">
+                        <strong class="text-forest-light">Did you know?</strong> Rescuing <span id="out-food-highlight">209 kg</span> of food saves enough embodied electricity (<span id="out-food-kwh-highlight">669 kWh</span>) to power an energy-efficient refrigerator for over <strong>18 months</strong>!
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: HOUSEHOLD & KITCHEN ENERGY EFFICIENCY SIMULATOR -->
+            <div id="panel-energy-sim" class="hidden space-y-8">
+                <!-- Scenario Selector Buttons -->
+                <div class="flex flex-wrap justify-center gap-2.5" id="energy-sim-tabs">
+                    <button type="button" data-esim="cooking" class="esim-btn px-5 py-3 rounded-xl font-semibold text-sm bg-sdg12 text-white shadow-md transition-all flex items-center gap-2">
+                        <i data-lucide="flame" class="w-4 h-4"></i>
+                        <span>Gas Stove vs. Induction Cooking</span>
+                    </button>
+                    <button type="button" data-esim="fridge" class="esim-btn px-5 py-3 rounded-xl font-semibold text-sm bg-white text-slate-600 border border-stone-200 hover:bg-stone-100 transition-all flex items-center gap-2">
+                        <i data-lucide="refrigerator" class="w-4 h-4"></i>
+                        <span>Old Fridge vs. Eco-Inverter</span>
+                    </button>
+                    <button type="button" data-esim="standby" class="esim-btn px-5 py-3 rounded-xl font-semibold text-sm bg-white text-slate-600 border border-stone-200 hover:bg-stone-100 transition-all flex items-center gap-2">
+                        <i data-lucide="plug-zap" class="w-4 h-4"></i>
+                        <span>Kitchen Standby Vampire Load</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white rounded-3xl p-6 sm:p-10 shadow-md border border-stone-200/80">
+                    <!-- Chart.js Canvas -->
+                    <div class="lg:col-span-7 bg-cream p-5 sm:p-6 rounded-2xl border border-stone-200/70">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 id="esim-chart-title" class="font-display font-bold text-base sm:text-lg text-slateDark">Annual Kitchen Energy Consumption (kWh-eq / Year)</h3>
+                            <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-white border border-stone-200 text-slate-600">12-Month Audit</span>
+                        </div>
+                        <div class="relative w-full h-64 sm:h-72">
+                            <canvas id="energySimChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Scenario Insights -->
+                    <div class="lg:col-span-5 space-y-5">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sdg12-50 border border-sdg12/25 text-sdg12-dark text-xs font-bold">
+                            <i data-lucide="trending-down" class="w-4 h-4 text-sdg12"></i>
+                            <span id="esim-badge">85% Thermal Efficiency vs 40% Gas</span>
+                        </div>
+
+                        <h3 id="esim-heading" class="font-display font-extrabold text-2xl text-slateDark">
+                            Clean Induction Cooking vs. Fossil Gas
+                        </h3>
+
+                        <p id="esim-desc" class="text-slate-600 text-sm leading-relaxed">
+                            Conventional gas stoves lose up to 60% of their heat to the surrounding kitchen air and emit indoor pollutants. Electromagnetic induction transfers 85–90% of energy directly into the cookware—aligning with SDG 12.c's shift away from fossil fuels.
+                        </p>
+
+                        <div class="grid grid-cols-2 gap-3.5 pt-2">
+                            <div class="p-4 rounded-2xl bg-cream border border-stone-200">
+                                <span class="text-xs text-slate-500 block">Annual Energy Saved</span>
+                                <span id="esim-kwh-saved" class="font-display font-extrabold text-xl text-sdg12 mt-1 block">920 kWh-eq</span>
+                            </div>
+                            <div class="p-4 rounded-2xl bg-cream border border-stone-200">
+                                <span class="text-xs text-slate-500 block">CO₂e Reduced / Year</span>
+                                <span id="esim-co2-saved" class="font-display font-extrabold text-xl text-forest mt-1 block">640 kg CO₂e</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 6. EDUCATIONAL GUIDE: THE SDG 12 FOOD-ENERGY-WATER NEXUS -->
+    <section id="nexus-guide" class="py-16 md:py-24 bg-white border-b border-stone-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl mx-auto text-center mb-14">
+                <span class="text-forest font-bold text-sm uppercase tracking-wider">UN SDG 12 Framework</span>
+                <h2 class="font-display font-extrabold text-2xl sm:text-4xl text-slateDark mt-2">
+                    The Food–Energy–Water Nexus in SDG 12
+                </h2>
+                <p class="text-slate-600 mt-3 text-base sm:text-lg">
+                    Responsible consumption means recognizing that saving food saves energy, and using clean energy preserves our food systems.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Pillar 1: Target 12.3 -->
+                <div class="rounded-3xl p-7 bg-forest-50/60 border border-forest/20 hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <div class="w-12 h-12 rounded-2xl bg-forest text-white flex items-center justify-center font-display font-extrabold text-base shadow-sm">
+                                12.3
+                            </div>
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-white text-forest border border-forest/20">Food Rescue</span>
+                        </div>
+                        <h3 class="font-display font-bold text-xl text-slateDark mb-3">
+                            Halve Global Per-Capita Food Waste
+                        </h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            By 2030, Target 12.3 aims to cut global food waste at retail and consumer levels by 50%. Community platforms like SpoonShare intercept edible surplus before it reaches methane-emitting landfills.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-forest/15 flex items-center gap-2 text-xs font-bold text-forest-dark">
+                        <i data-lucide="utensils" class="w-4 h-4"></i>
+                        <span>Redistribute Surplus, Feed Communities</span>
+                    </div>
+                </div>
+
+                <!-- Pillar 2: Target 12.c -->
+                <div class="rounded-3xl p-7 bg-sdg12-50/70 border border-sdg12/25 hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <div class="w-12 h-12 rounded-2xl bg-sdg12 text-white flex items-center justify-center font-display font-extrabold text-base shadow-sm">
+                                12.c
+                            </div>
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-white text-sdg12-dark border border-sdg12/25">Clean Energy</span>
+                        </div>
+                        <h3 class="font-display font-bold text-xl text-slateDark mb-3">
+                            Phase Out Wasteful Fossil-Fuel Subsidies
+                        </h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            Target 12.c addresses market distortions that encourage wasteful fossil fuel consumption, accelerating the transition toward solar micro-grids, efficient appliances, and electrified kitchens.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-sdg12/15 flex items-center gap-2 text-xs font-bold text-sdg12-dark">
+                        <i data-lucide="sun" class="w-4 h-4"></i>
+                        <span>Power Local Hubs with Clean Energy</span>
+                    </div>
+                </div>
+
+                <!-- Pillar 3: Circular Nexus -->
+                <div class="rounded-3xl p-7 bg-cream border border-stone-200 hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <div class="w-12 h-12 rounded-2xl bg-slateDark text-white flex items-center justify-center font-display font-extrabold text-base shadow-sm">
+                                12.2
+                            </div>
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-white text-slateDark border border-stone-200">Resource Nexus</span>
+                        </div>
+                        <h3 class="font-display font-bold text-xl text-slateDark mb-3">
+                            Sustainable Management & Biogas Loops
+                        </h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            Inedible food scraps shouldn't be wasted either—community anaerobic digesters convert organic waste into clean cooking biogas and nutrient-rich compost, closing the loop between food and energy.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-stone-200 flex items-center gap-2 text-xs font-bold text-slateDark">
+                        <i data-lucide="recycle" class="w-4 h-4 text-forest"></i>
+                        <span>From Food Scraps to Clean Biogas</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 7. INTERACTIVE DAILY PLEDGES & BADGE PROGRESSION -->
+    <section id="daily-pledges" class="py-16 md:py-24 bg-gradient-to-b from-cream to-white">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-10">
+                <span class="text-sdg12 font-bold text-sm uppercase tracking-wider">Habit Builder</span>
+                <h2 class="font-display font-extrabold text-2xl sm:text-4xl text-slateDark mt-2">
+                    Daily Food & Energy Action Pledges
+                </h2>
+                <p class="text-slate-600 mt-3 text-base">
+                    Check off the sustainable habits you practiced today to level up your SDG 12 Community Guardian badge!
+                </p>
+            </div>
+
+            <!-- Badge & Progress Card -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-lg border border-stone-200/90 mb-8">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+                    <div class="flex items-center gap-4">
+                        <div id="badge-icon-box" class="w-14 h-14 rounded-2xl bg-sdg12-50 border border-sdg12/30 text-sdg12 flex items-center justify-center shrink-0">
+                            <i data-lucide="sprout" class="w-7 h-7"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Current Community Rank</span>
+                            <h3 id="pledge-rank-title" class="font-display font-extrabold text-xl text-slateDark">Mindful Beginner</h3>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 self-end sm:self-center">
+                        <div class="text-right">
+                            <span id="pledge-points" class="font-display font-extrabold text-2xl text-forest">0</span>
+                            <span class="text-sm text-slate-500 font-medium">/ 100 Pts</span>
+                        </div>
+                        <button type="button" id="reset-pledges-btn" title="Reset Pledges" class="p-2.5 rounded-xl bg-cream hover:bg-stone-200 text-slate-600 transition-colors">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="w-full h-4 bg-stone-100 rounded-full overflow-hidden p-0.5 border border-stone-200/70">
+                    <div id="pledge-progress-bar" class="h-full bg-gradient-to-r from-forest via-forest-light to-sdg12 rounded-full transition-all duration-500 ease-out" style="width: 0%;"></div>
+                </div>
+                <p id="pledge-feedback" class="text-xs text-slate-500 mt-3">
+                    Complete actions below to unlock the <strong>SDG 12 Food & Energy Steward</strong> badge.
+                </p>
+            </div>
+
+            <!-- Pledge Checklist Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="pledges-grid">
+                <!-- Food Pledge 1 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-forest cursor-pointer transition-all shadow-xs">
+                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-forest rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-forest bg-forest-50 px-2 py-0.5 rounded-md">Food 12.3</span>
+                            <span class="text-xs font-bold text-slate-500">+15 pts</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Eat Leftovers or Share Surplus Meals</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Zero edible food thrown into the trash today.</span>
+                    </div>
+                </label>
+
+                <!-- Energy Pledge 1 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-sdg12 cursor-pointer transition-all shadow-xs">
+                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-sdg12-dark bg-sdg12-50 px-2 py-0.5 rounded-md">Energy 12.c</span>
+                            <span class="text-xs font-bold text-slate-500">+15 pts</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Kill Kitchen & Living Room Standby Power</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Unplug idle microwaves, coffee makers, and chargers.</span>
+                    </div>
+                </label>
+
+                <!-- Food Pledge 2 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-forest cursor-pointer transition-all shadow-xs">
+                    <input type="checkbox" data-pts="20" class="pledge-chk mt-1 w-5 h-5 accent-forest rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-forest bg-forest-50 px-2 py-0.5 rounded-md">Food 12.3</span>
+                            <span class="text-xs font-bold text-slate-500">+20 pts</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Batch-Cook & Cover Pots While Boiling</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Cuts cooking energy by 30% while prepping meals for the week.</span>
+                    </div>
+                </label>
+
+                <!-- Energy Pledge 2 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-sdg12 cursor-pointer transition-all shadow-xs">
+                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-sdg12-dark bg-sdg12-50 px-2 py-0.5 rounded-md">Energy 12.2</span>
+                            <span class="text-xs font-bold text-slate-500">+15 pts</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Keep Fridge Coils Clean & Door Closed</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Prevents cold-air loss and reduces fridge electricity draw by 15%.</span>
+                    </div>
+                </label>
+
+                <!-- Food Pledge 3 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-forest cursor-pointer transition-all shadow-xs">
+                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-forest rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-forest bg-forest-50 px-2 py-0.5 rounded-md">Circular 12.5</span>
+                            <span class="text-xs font-bold text-slate-500">+15 pts</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Compost Organic Scraps or Drop at Biogas Hub</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Divert peels and grounds into clean soil or renewable biogas.</span>
+                    </div>
+                </label>
+
+                <!-- Energy Pledge 3 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-sdg12 cursor-pointer transition-all shadow-xs">
+                    <input type="checkbox" data-pts="20" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-sdg12-dark bg-sdg12-50 px-2 py-0.5 rounded-md">Clean Mobility</span>
+                            <span class="text-xs font-bold text-slate-500">+20 pts</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Walk, Bike, or Use EV/Transit for Grocery Runs</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Eliminates last-mile fossil fuel emissions on food pickups.</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+    </section>
+
+    <!-- 8. FOOTER -->
+    <footer class="bg-slateDark text-slate-300 pt-14 pb-10 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-10 pb-10 border-b border-slate-800">
+                <div class="md:col-span-5 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sdg12 to-forest flex items-center justify-center text-white">
+                            <i data-lucide="sprout" class="w-5 h-5"></i>
+                        </div>
+                        <span class="font-display font-bold text-white text-lg">SpoonShare 12</span>
+                    </div>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        A community-driven platform uniting surplus food rescue and clean energy sharing to advance United Nations Sustainable Development Goal 12: Responsible Consumption and Production.
+                    </p>
+                </div>
+
+                <div class="md:col-span-4 space-y-3">
+                    <h4 class="font-display font-bold text-white text-xs uppercase tracking-wider">UN SDG 12 Alignment</h4>
+                    <ul class="space-y-2 text-xs sm:text-sm text-slate-400">
+                        <li><strong class="text-forest-light">Target 12.3:</strong> Halve global per capita food waste at retail and consumer levels.</li>
+                        <li><strong class="text-sdg12-light">Target 12.2:</strong> Sustainable management and efficient use of natural resources.</li>
+                        <li><strong class="text-sdg12-light">Target 12.c:</strong> Rationalize inefficient fossil-fuel subsidies & accelerate clean energy.</li>
+                    </ul>
+                </div>
+
+                <div class="md:col-span-3 space-y-3">
+                    <h4 class="font-display font-bold text-white text-xs uppercase tracking-wider">Quick Links</h4>
+                    <ul class="space-y-2 text-sm text-slate-400">
+                        <li><a href="#rescue-feed" class="hover:text-forest-light transition-colors">Food & Energy Rescue Feed</a></li>
+                        <li><a href="#impact-lab" class="hover:text-sdg12-light transition-colors">Dual Impact Calculator</a></li>
+                        <li><a href="#nexus-guide" class="hover:text-forest-light transition-colors">Food-Energy-Water Nexus</a></li>
+                        <li><a href="#daily-pledges" class="hover:text-sdg12-light transition-colors">Daily Habit Pledges</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="pt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+                <p>&copy; 2026 SpoonShare 12 — Community Food & Energy Rescue Hub.</p>
+                <p>Built for SDG 12: Responsible Consumption & Production.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 9. POST A SHARE MODAL (FOOD OR ENERGY) -->
+    <div id="share-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-slateDark/60 backdrop-blur-xs transition-opacity" onclick="closeShareModal()"></div>
+
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative w-full max-w-lg rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-stone-200 animate-card">
+                <div class="flex items-center justify-between border-b border-stone-100 pb-4 mb-5">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-sdg12">Community Contribution</span>
+                        <h3 id="modal-title" class="font-display font-extrabold text-xl text-slateDark">Post a Food or Energy Share</h3>
+                    </div>
+                    <button type="button" onclick="closeShareModal()" class="p-2 rounded-xl text-slate-400 hover:bg-stone-100 hover:text-slateDark transition-colors">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <form id="post-share-form" class="space-y-4">
+                    <!-- Category Selector -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Share Category</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button type="button" id="modal-cat-food" onclick="setModalCategory('food')" class="p-3 rounded-2xl border-2 border-forest bg-forest-50 text-forest font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                <i data-lucide="utensils" class="w-4 h-4"></i>
+                                <span>Surplus Food</span>
+                            </button>
+                            <button type="button" id="modal-cat-energy" onclick="setModalCategory('energy')" class="p-3 rounded-2xl border-2 border-stone-200 bg-white text-slate-600 font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                                <i data-lucide="zap" class="w-4 h-4"></i>
+                                <span>Clean Energy / Eco-Tool</span>
+                            </button>
+                        </div>
+                        <input type="hidden" id="share-category" value="food">
+                    </div>
+
+                    <!-- Title -->
+                    <div>
+                        <label for="share-title" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Listing Title</label>
+                        <input type="text" id="share-title" required placeholder="e.g., Fresh Sourdough & Pastries Box (4 kg)" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-forest focus:ring-2 focus:ring-forest/20 outline-none text-sm">
+                    </div>
+
+                    <!-- Quantity / Impact Metric & Location -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div>
+                            <label for="share-metric" id="label-share-metric" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Weight / Portions (kg)</label>
+                            <input type="number" id="share-metric" step="0.5" min="0.5" required value="3" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-forest focus:ring-2 focus:ring-forest/20 outline-none text-sm">
+                        </div>
+                        <div>
+                            <label for="share-location" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Neighborhood / Hub</label>
+                            <input type="text" id="share-location" required placeholder="e.g., Green Valley Hub • 0.6 km" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-forest focus:ring-2 focus:ring-forest/20 outline-none text-sm">
+                        </div>
+                    </div>
+
+                    <!-- Pickup Window & Notes -->
+                    <div>
+                        <label for="share-window" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Pickup / Open Window</label>
+                        <input type="text" id="share-window" required placeholder="e.g., Today, 5:00 PM – 8:00 PM" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-forest focus:ring-2 focus:ring-forest/20 outline-none text-sm">
+                    </div>
+
+                    <div>
+                        <label for="share-desc" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Details & Sustainability Note</label>
+                        <textarea id="share-desc" rows="2" required placeholder="Describe items, allergens, or energy-saving specs..." class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-forest focus:ring-2 focus:ring-forest/20 outline-none text-sm"></textarea>
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-end gap-3">
+                        <button type="button" onclick="closeShareModal()" class="px-5 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-stone-100 transition-colors">Cancel</button>
+                        <button type="submit" id="modal-submit-btn" class="px-6 py-3 rounded-xl bg-forest hover:bg-forest-dark text-white text-sm font-bold shadow-md transition-all flex items-center gap-2">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                            <span>Publish to Live Feed (+30 pts)</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- APPLICATION LOGIC -->
+    <script>
+        // Global State
+        let userScore = 120;
+        let tickerFood = 1428;
+        let tickerEnergy = 3890;
+        let tickerCo2 = 6412;
+        let currentFeedFilter = 'all';
+
+        // Initial Live Rescue Feed Listings (SpoonShare Style: Food + Energy)
+        let rescueListings = [
+            {
+                id: 1,
+                category: 'food',
+                title: 'Artisan Bakery Bread & Pastry Box',
+                metricValue: 3.5,
+                metricUnit: 'kg surplus',
+                provider: 'Golden Crust Bakery',
+                location: 'Oakwood District • 0.4 km',
+                window: 'Today, 6:30 PM – 8:30 PM',
+                description: 'Unsold sourdough loaves, multigrain rolls, and croissants baked this morning. Ideal for families or community soup kitchens.',
+                co2Saved: 8.8,
+                claimed: false
+            },
+            {
+                id: 2,
+                category: 'energy',
+                title: 'Community Solar Charging & Power Bank Hub',
+                metricValue: 15,
+                metricUnit: 'kWh clean solar',
+                provider: 'SunGrid Neighborhood Co-op',
+                location: 'Maple Community Center • 0.7 km',
+                window: 'Open Daily, 10:00 AM – 5:00 PM',
+                description: 'Free 100% rooftop solar charging stations for laptops, e-bikes, and portable power banks—cutting peak grid fossil demand.',
+                co2Saved: 12.8,
+                claimed: false
+            },
+            {
+                id: 3,
+                category: 'food',
+                title: 'Community Kitchen Surplus Meals (12 Portions)',
+                metricValue: 4.8,
+                metricUnit: 'kg cooked meals',
+                provider: 'Harvest Table Kitchen',
+                location: 'Central Plaza • 1.1 km',
+                window: 'Today, 7:00 PM – 9:00 PM',
+                description: 'Freshly prepared lentil stew, steamed brown rice, and roasted seasonal vegetables packed in reusable containers.',
+                co2Saved: 23.0,
+                claimed: false
+            },
+            {
+                id: 4,
+                category: 'energy',
+                title: 'Portable Induction Cooker Loan & Eco-Kitchen Slot',
+                metricValue: 18,
+                metricUnit: 'kWh gas-free saved',
+                provider: 'GreenBlocks Library of Things',
+                location: 'Elm Street Hub • 0.9 km',
+                window: 'Reserve 48h Slot • Pickup 4 PM',
+                description: 'Borrow a high-efficiency 2000W induction burner + cookware to batch-cook meals without fossil gas emissions.',
+                co2Saved: 15.3,
+                claimed: false
+            },
+            {
+                id: 5,
+                category: 'food',
+                title: 'Organic Produce Crate (Slightly Imperfect)',
+                metricValue: 6.0,
+                metricUnit: 'kg veggies & fruit',
+                provider: 'Valley Eco-Grocers',
+                location: 'Westside Market • 1.4 km',
+                window: 'Today until 8:00 PM',
+                description: 'Blemished organic tomatoes, bell peppers, bananas, and leafy greens—100% fresh and nutrient-dense.',
+                co2Saved: 15.0,
+                claimed: false
+            },
+            {
+                id: 6,
+                category: 'energy',
+                title: 'LED Bulb & Smart Standby Timer Swap Drive',
+                metricValue: 45,
+                metricUnit: 'kWh/mo savings kit',
+                provider: 'ZeroWatt Youth Volunteers',
+                location: 'Civic Park Pavilion • 0.5 km',
+                window: 'Sat & Sun, 9:00 AM – 1:00 PM',
+                description: 'Trade in old incandescent bulbs for free 9W Energy-Star LEDs plus a smart power strip to eliminate phantom loads.',
+                co2Saved: 38.2,
+                claimed: false
+            }
+        ];
+
+        // Toast Helper
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'energy' ? 'bg-sdg12 text-white' : 'bg-forest text-white';
+            toast.className = `${bgClass} px-4 py-3 rounded-2xl shadow-xl text-xs sm:text-sm font-semibold flex items-center gap-2.5 pointer-events-auto animate-card max-w-sm`;
+            toast.innerHTML = `
+                <i data-lucide="${type === 'energy' ? 'zap' : 'check-circle-2'}" class="w-4 h-4 shrink-0"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Update Top Ticker & User Score Displays
+        function updateGlobalMetrics() {
+            document.getElementById('ticker-food').textContent = tickerFood.toLocaleString('en-US');
+            document.getElementById('ticker-energy').textContent = tickerEnergy.toLocaleString('en-US');
+            document.getElementById('ticker-co2').textContent = tickerCo2.toLocaleString('en-US');
+            document.getElementById('user-score-display').textContent = `${userScore} pts`;
+            document.getElementById('mobile-user-score').textContent = `${userScore} pts`;
+        }
+
+        // Render Rescue Feed Cards
+        function renderRescueFeed() {
+            const grid = document.getElementById('rescue-feed-grid');
+            const filtered = currentFeedFilter === 'all'
+                ? rescueListings
+                : rescueListings.filter(item => item.category === currentFeedFilter);
+
+            // Update filter counts
+            document.getElementById('count-all').textContent = rescueListings.length;
+            document.getElementById('count-food').textContent = rescueListings.filter(i => i.category === 'food').length;
+            document.getElementById('count-energy').textContent = rescueListings.filter(i => i.category === 'energy').length;
+            document.getElementById('nav-feed-badge').textContent = rescueListings.filter(i => !i.claimed).length;
+
+            grid.innerHTML = filtered.map(item => {
+                const isFood = item.category === 'food';
+                const badgeStyle = isFood
+                    ? 'bg-forest-50 text-forest border-forest/20'
+                    : 'bg-sdg12-50 text-sdg12-dark border-sdg12/25';
+                const iconName = isFood ? 'utensils' : 'zap';
+                const tagLabel = isFood ? 'Surplus Food • SDG 12.3' : 'Clean Energy • SDG 12.c';
+                const btnStyle = item.claimed
+                    ? 'bg-stone-200 text-slate-500 cursor-default'
+                    : (isFood
+                        ? 'bg-forest hover:bg-forest-dark text-white shadow-sm'
+                        : 'bg-sdg12 hover:bg-sdg12-dark text-white shadow-sm');
+
+                return `
+                    <article class="animate-card rounded-3xl bg-cream border border-stone-200/90 p-6 flex flex-col justify-between hover:shadow-lg transition-all ${item.claimed ? 'opacity-80' : ''}">
+                        <div>
+                            <!-- Top Tag & Metric -->
+                            <div class="flex items-center justify-between gap-2 mb-4">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${badgeStyle}">
+                                    <i data-lucide="${iconName}" class="w-3.5 h-3.5"></i>
+                                    <span>${tagLabel}</span>
+                                </span>
+                                <span class="font-display font-extrabold text-xs px-2.5 py-1 rounded-lg bg-white border border-stone-200 text-slateDark">
+                                    ${item.metricValue} ${item.metricUnit}
+                                </span>
+                            </div>
+
+                            <!-- Title & Provider -->
+                            <h3 class="font-display font-bold text-lg text-slateDark leading-snug mb-1">${item.title}</h3>
+                            <p class="text-xs font-semibold text-slate-500 mb-3">Shared by ${item.provider}</p>
+
+                            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
+                                ${item.description}
+                            </p>
+                        </div>
+
+                        <div class="space-y-4 pt-3 border-t border-stone-200/70">
+                            <div class="space-y-1.5 text-xs text-slate-500">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                                    <span>${item.location}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                                    <span>${item.window}</span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3 pt-1">
+                                <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                                    -${item.co2Saved} kg CO₂e
+                                </span>
+                                <button type="button" onclick="claimListing(${item.id})" ${item.claimed ? 'disabled' : ''} class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 ${btnStyle}">
+                                    <i data-lucide="${item.claimed ? 'check' : 'hand-heart'}" class="w-4 h-4"></i>
+                                    <span>${item.claimed ? 'Claimed & Reserved' : (isFood ? 'Claim Surplus (+25 pts)' : 'Reserve Slot (+25 pts)')}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // Claim / Reserve Action
+        window.claimListing = function(id) {
+            const item = rescueListings.find(l => l.id === id);
+            if (!item || item.claimed) return;
+
+            item.claimed = true;
+            userScore += 25;
+            tickerCo2 = Math.round(tickerCo2 + item.co2Saved);
+
+            if (item.category === 'food') {
+                tickerFood = Math.round(tickerFood + item.metricValue);
+                showToast(`Reserved "${item.title}"! +25 SDG 12 Impact Points.`, 'success');
+            } else {
+                tickerEnergy = Math.round(tickerEnergy + item.metricValue);
+                showToast(`Reserved "${item.title}"! +25 SDG 12 Impact Points.`, 'energy');
+            }
+
+            updateGlobalMetrics();
+            renderRescueFeed();
+        };
+
+        // Modal Controls
+        window.openShareModal = function(defaultCat = 'food') {
+            document.getElementById('share-modal').classList.remove('hidden');
+            setModalCategory(defaultCat);
+        };
+
+        window.closeShareModal = function() {
+            document.getElementById('share-modal').classList.add('hidden');
+        };
+
+        window.setModalCategory = function(cat) {
+            document.getElementById('share-category').value = cat;
+            const btnFood = document.getElementById('modal-cat-food');
+            const btnEnergy = document.getElementById('modal-cat-energy');
+            const labelMetric = document.getElementById('label-share-metric');
+            const titleInput = document.getElementById('share-title');
+            const submitBtn = document.getElementById('modal-submit-btn');
+
+            if (cat === 'food') {
+                btnFood.className = 'p-3 rounded-2xl border-2 border-forest bg-forest-50 text-forest font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                btnEnergy.className = 'p-3 rounded-2xl border-2 border-stone-200 bg-white text-slate-600 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                labelMetric.textContent = 'Estimated Weight (kg)';
+                titleInput.placeholder = 'e.g., Fresh Sourdough & Pastries Box (4 kg)';
+                submitBtn.className = 'px-6 py-3 rounded-xl bg-forest hover:bg-forest-dark text-white text-sm font-bold shadow-md transition-all flex items-center gap-2';
+            } else {
+                btnEnergy.className = 'p-3 rounded-2xl border-2 border-sdg12 bg-sdg12-50 text-sdg12-dark font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                btnFood.className = 'p-3 rounded-2xl border-2 border-stone-200 bg-white text-slate-600 font-bold text-sm flex items-center justify-center gap-2 transition-all';
+                labelMetric.textContent = 'Estimated Energy Saved (kWh)';
+                titleInput.placeholder = 'e.g., Rooftop Solar Power Bank Station';
+                submitBtn.className = 'px-6 py-3 rounded-xl bg-sdg12 hover:bg-sdg12-dark text-white text-sm font-bold shadow-md transition-all flex items-center gap-2';
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            updateGlobalMetrics();
+            renderRescueFeed();
+
+            // Mobile Menu Toggle
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenuBtn.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+            mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mobileMenu.classList.add('hidden')));
+
+            // Feed Filter Buttons
+            document.querySelectorAll('.feed-filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentFeedFilter = btn.dataset.filter;
+                    document.querySelectorAll('.feed-filter-btn').forEach(b => {
+                        b.className = 'feed-filter-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slateDark transition-all flex items-center gap-1.5';
+                    });
+                    btn.className = 'feed-filter-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slateDark text-white shadow-xs transition-all flex items-center gap-1.5';
+                    renderRescueFeed();
+                });
+            });
+
+            // Handle New Post Submission
+            document.getElementById('post-share-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const category = document.getElementById('share-category').value;
+                const title = document.getElementById('share-title').value.trim();
+                const metricValue = parseFloat(document.getElementById('share-metric').value) || 2;
+                const location = document.getElementById('share-location').value.trim();
+                const windowText = document.getElementById('share-window').value.trim();
+                const description = document.getElementById('share-desc').value.trim();
+
+                const isFood = category === 'food';
+                const co2Saved = isFood ? +(metricValue * 2.8).toFixed(1) : +(metricValue * 0.85).toFixed(1);
+
+                const newListing = {
+                    id: Date.now(),
+                    category,
+                    title,
+                    metricValue,
+                    metricUnit: isFood ? 'kg surplus' : 'kWh clean energy',
+                    provider: 'You (Community Member)',
+                    location,
+                    window: windowText,
+                    description,
+                    co2Saved,
+                    claimed: false
+                };
+
+                rescueListings.unshift(newListing);
+                userScore += 30;
+                if (isFood) tickerFood += Math.round(metricValue);
+                else tickerEnergy += Math.round(metricValue);
+                tickerCo2 += Math.round(co2Saved);
+
+                updateGlobalMetrics();
+                renderRescueFeed();
+                closeShareModal();
+                e.target.reset();
+                showToast(`Published "${title}" to the live feed! +30 SDG 12 Points.`, isFood ? 'success' : 'energy');
+            });
+
+            // Dual Impact Lab Tab Switcher
+            const tabFoodCalc = document.getElementById('tab-food-calc');
+            const tabEnergySim = document.getElementById('tab-energy-sim');
+            const panelFoodCalc = document.getElementById('panel-food-calc');
+            const panelEnergySim = document.getElementById('panel-energy-sim');
+
+            tabFoodCalc.addEventListener('click', () => {
+                tabFoodCalc.className = 'lab-tab-btn px-5 py-3 rounded-xl text-xs sm:text-sm font-bold bg-forest text-white shadow-sm transition-all flex items-center gap-2';
+                tabEnergySim.className = 'lab-tab-btn px-5 py-3 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-sdg12 transition-all flex items-center gap-2';
+                panelFoodCalc.classList.remove('hidden');
+                panelEnergySim.classList.add('hidden');
+            });
+
+            tabEnergySim.addEventListener('click', () => {
+                tabEnergySim.className = 'lab-tab-btn px-5 py-3 rounded-xl text-xs sm:text-sm font-bold bg-sdg12 text-white shadow-sm transition-all flex items-center gap-2';
+                tabFoodCalc.className = 'lab-tab-btn px-5 py-3 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-forest transition-all flex items-center gap-2';
+                panelEnergySim.classList.remove('hidden');
+                panelFoodCalc.classList.add('hidden');
+            });
+
+            // TAB 1: Food Waste & Cold-Chain Energy Calculator Logic
+            const sliderFoodKg = document.getElementById('slider-food-kg');
+            const valFoodKg = document.getElementById('val-food-kg');
+            const foodTypeBtns = document.querySelectorAll('.food-type-btn');
+            const chkFifo = document.getElementById('chk-fifo');
+            const chkFridgeOpt = document.getElementById('chk-fridge-opt');
+
+            let foodWeeklyKg = 3.5;
+            let foodCo2Factor = 2.5;
+            let foodKwhFactor = 3.2;
+            let foodWaterFactor = 850;
+            let foodCostFactor = 4.2;
+
+            function calculateFoodImpact() {
+                let bonusMultiplier = 1.0;
+                if (chkFifo.checked) bonusMultiplier += 0.15;
+                if (chkFridgeOpt.checked) bonusMultiplier += 0.10;
+
+                const annualKg = Math.round(foodWeeklyKg * 52 * bonusMultiplier);
+                const annualMeals = Math.round(annualKg * 2.5);
+                const annualMoney = Math.round(annualKg * foodCostFactor);
+                const annualKwh = Math.round(annualKg * foodKwhFactor);
+                const annualWaterK = Math.round((annualKg * foodWaterFactor) / 1000);
+                const annualCo2 = Math.round(annualKg * foodCo2Factor);
+
+                document.getElementById('out-food-year').textContent = annualKg.toLocaleString('en-US');
+                document.getElementById('out-meals-year').textContent = annualMeals.toLocaleString('en-US');
+                document.getElementById('out-food-money').textContent = annualMoney.toLocaleString('en-US');
+                document.getElementById('out-food-kwh').textContent = annualKwh.toLocaleString('en-US');
+                document.getElementById('out-food-water').textContent = `${annualWaterK.toLocaleString('en-US')}k`;
+                document.getElementById('out-food-co2').textContent = annualCo2.toLocaleString('en-US');
+                document.getElementById('out-food-highlight').textContent = `${annualKg.toLocaleString('en-US')} kg`;
+                document.getElementById('out-food-kwh-highlight').textContent = `${annualKwh.toLocaleString('en-US')} kWh`;
+            }
+
+            sliderFoodKg.addEventListener('input', (e) => {
+                foodWeeklyKg = parseFloat(e.target.value);
+                valFoodKg.textContent = foodWeeklyKg.toFixed(1);
+                calculateFoodImpact();
+            });
+
+            foodTypeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    foodTypeBtns.forEach(b => {
+                        b.classList.remove('border-forest', 'bg-forest-50/70');
+                        b.classList.add('border-stone-200', 'bg-white');
+                    });
+                    btn.classList.remove('border-stone-200', 'bg-white');
+                    btn.classList.add('border-forest', 'bg-forest-50/70');
+
+                    foodCo2Factor = parseFloat(btn.dataset.co2Factor);
+                    foodKwhFactor = parseFloat(btn.dataset.kwhFactor);
+                    foodWaterFactor = parseFloat(btn.dataset.waterFactor);
+                    foodCostFactor = parseFloat(btn.dataset.costFactor);
+                    calculateFoodImpact();
+                });
+            });
+
+            chkFifo.addEventListener('change', calculateFoodImpact);
+            chkFridgeOpt.addEventListener('change', calculateFoodImpact);
+            calculateFoodImpact();
+
+            // TAB 2: Kitchen & Appliance Simulator with Chart.js
+            const esimData = {
+                cooking: {
+                    chartTitle: 'Annual Kitchen Cooking Energy (kWh-equivalent / Year)',
+                    labels: ['Conventional Gas Stove (40% Eff.)', 'Clean Induction Stove (88% Eff.)'],
+                    values: [1680, 760],
+                    colors: ['#94A3B8', '#059669'],
+                    badge: '88% Thermal Efficiency vs 40% Gas',
+                    heading: 'Clean Induction Cooking vs. Fossil Gas',
+                    desc: 'Conventional gas stoves lose up to 60% of their heat to the surrounding kitchen air and emit indoor pollutants. Electromagnetic induction transfers 85–90% of energy directly into the cookware—aligning with SDG 12.c’s shift away from fossil fuels.',
+                    kwhSaved: '920 kWh-eq',
+                    co2Saved: '640 kg CO₂e'
+                },
+                fridge: {
+                    chartTitle: 'Annual Refrigerator Electricity Draw (kWh / Year)',
+                    labels: ['10-Year-Old Fridge (Unoptimized)', 'Eco-Inverter Fridge at 3.5°C'],
+                    values: [780, 310],
+                    colors: ['#94A3B8', '#BF8B2E'],
+                    badge: '60% Less Cold-Chain Electricity',
+                    heading: 'Cold-Chain Efficiency: Eco-Inverter Refrigerator',
+                    desc: 'Refrigerators run 24/7 to keep food fresh. Upgrading to a variable-speed inverter model and maintaining 3°C–4°C prevents premature food spoilage while slashing continuous electricity consumption by 60%.',
+                    kwhSaved: '470 kWh',
+                    co2Saved: '399 kg CO₂e'
+                },
+                standby: {
+                    chartTitle: 'Annual Kitchen & Home Standby Phantom Load (kWh / Year)',
+                    labels: ['Always Plugged In (Standby 24/7)', 'Smart Power Strip / Unplugged'],
+                    values: [540, 25],
+                    colors: ['#E11D48', '#059669'],
+                    badge: 'Eliminate 95% of Phantom Power',
+                    heading: 'Eliminating Kitchen & Home "Vampire Power"',
+                    desc: 'Coffee makers, microwaves, toasters, and chargers draw continuous standby power even when idle. Using a switched smart power strip cuts unnecessary baseline fossil-grid demand effortlessly.',
+                    kwhSaved: '515 kWh',
+                    co2Saved: '437 kg CO₂e'
+                }
+            };
+
+            const esimCtx = document.getElementById('energySimChart').getContext('2d');
+            let energySimChart = new Chart(esimCtx, {
+                type: 'bar',
+                data: {
+                    labels: esimData.cooking.labels,
+                    datasets: [{
+                        label: 'Annual Energy (kWh-eq)',
+                        data: esimData.cooking.values,
+                        backgroundColor: esimData.cooking.colors,
+                        borderRadius: 12,
+                        barThickness: 56
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1E293B',
+                            padding: 12,
+                            cornerRadius: 10,
+                            callbacks: {
+                                label: (ctx) => `${ctx.parsed.y.toLocaleString('en-US')} kWh-eq / year`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#E7E5E4' },
+                            ticks: { callback: (v) => `${v} kWh` }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Plus Jakarta Sans', weight: '600', size: 12 } }
+                        }
+                    }
+                }
+            });
+
+            document.querySelectorAll('.esim-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const key = btn.dataset.esim;
+                    const data = esimData[key];
+
+                    document.querySelectorAll('.esim-btn').forEach(b => {
+                        b.className = 'esim-btn px-5 py-3 rounded-xl font-semibold text-sm bg-white text-slate-600 border border-stone-200 hover:bg-stone-100 transition-all flex items-center gap-2';
+                    });
+                    btn.className = 'esim-btn px-5 py-3 rounded-xl font-semibold text-sm bg-sdg12 text-white shadow-md transition-all flex items-center gap-2';
+
+                    document.getElementById('esim-chart-title').textContent = data.chartTitle;
+                    document.getElementById('esim-badge').textContent = data.badge;
+                    document.getElementById('esim-heading').textContent = data.heading;
+                    document.getElementById('esim-desc').textContent = data.desc;
+                    document.getElementById('esim-kwh-saved').textContent = data.kwhSaved;
+                    document.getElementById('esim-co2-saved').textContent = data.co2Saved;
+
+                    energySimChart.data.labels = data.labels;
+                    energySimChart.data.datasets[0].data = data.values;
+                    energySimChart.data.datasets[0].backgroundColor = data.colors;
+                    energySimChart.update();
+                });
+            });
+
+            // 7. Interactive Daily Pledges & Badge Progression
+            const pledgeCheckboxes = document.querySelectorAll('.pledge-chk');
+            const pledgePointsEl = document.getElementById('pledge-points');
+            const pledgeProgressBar = document.getElementById('pledge-progress-bar');
+            const pledgeRankTitle = document.getElementById('pledge-rank-title');
+            const pledgeFeedback = document.getElementById('pledge-feedback');
+            const badgeIconBox = document.getElementById('badge-icon-box');
+
+            function updatePledgeProgress() {
+                let pts = 0;
+                pledgeCheckboxes.forEach(chk => {
+                    const card = chk.closest('.pledge-card');
+                    if (chk.checked) {
+                        pts += parseInt(chk.dataset.pts, 10);
+                        card.classList.add('border-forest', 'bg-forest-50/30');
+                        card.classList.remove('border-stone-200', 'bg-white');
+                    } else {
+                        card.classList.remove('border-forest', 'bg-forest-50/30');
+                        card.classList.add('border-stone-200', 'bg-white');
+                    }
+                });
+
+                pledgePointsEl.textContent = pts;
+                pledgeProgressBar.style.width = `${pts}%`;
+
+                if (pts === 0) {
+                    pledgeRankTitle.textContent = 'Mindful Beginner';
+                    badgeIconBox.className = 'w-14 h-14 rounded-2xl bg-sdg12-50 border border-sdg12/30 text-sdg12 flex items-center justify-center shrink-0';
+                    pledgeFeedback.innerHTML = 'Complete actions below to unlock the <strong>SDG 12 Food & Energy Steward</strong> badge.';
+                } else if (pts < 50) {
+                    pledgeRankTitle.textContent = 'Surplus Saver & Watt Watcher';
+                    badgeIconBox.className = 'w-14 h-14 rounded-2xl bg-forest-50 border border-forest/30 text-forest flex items-center justify-center shrink-0';
+                    pledgeFeedback.textContent = 'Great momentum! Keep combining food rescue with clean energy habits.';
+                } else if (pts < 100) {
+                    pledgeRankTitle.textContent = 'Circular Community Champion';
+                    badgeIconBox.className = 'w-14 h-14 rounded-2xl bg-sdg12 text-white flex items-center justify-center shrink-0 shadow-md';
+                    pledgeFeedback.textContent = 'Impressive! You are actively cutting both food waste and fossil-fuel energy demand.';
+                } else {
+                    pledgeRankTitle.textContent = 'SDG 12 Food & Energy Steward';
+                    badgeIconBox.className = 'w-14 h-14 rounded-2xl bg-gradient-to-br from-forest to-sdg12 text-white flex items-center justify-center shrink-0 shadow-lg';
+                    pledgeFeedback.innerHTML = '<strong>100/100 Unlocked!</strong> You are a model SDG 12 Food & Energy Steward.';
+                }
+            }
+
+            pledgeCheckboxes.forEach(chk => {
+                chk.addEventListener('change', (e) => {
+                    const delta = parseInt(chk.dataset.pts, 10);
+                    if (e.target.checked) {
+                        userScore += delta;
+                        showToast(`Pledge completed! +${delta} SDG 12 Points.`, 'success');
+                    } else {
+                        userScore = Math.max(0, userScore - delta);
+                    }
+                    updateGlobalMetrics();
+                    updatePledgeProgress();
+                });
+            });
+
+            document.getElementById('reset-pledges-btn').addEventListener('click', () => {
+                pledgeCheckboxes.forEach(chk => { chk.checked = false; });
+                updatePledgeProgress();
+            });
+        });
+    </script>
+</body>
+</html>

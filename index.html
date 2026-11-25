@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDG 12 Energi — Konsumsi & Produksi Energi Bertanggung Jawab</title>
+
+    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide Icons via CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Tailwind Custom Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        cream: '#FAF9F6',
+                        sdg12: {
+                            DEFAULT: '#BF8B2E',
+                            light: '#D9A84E',
+                            dark: '#996D1F',
+                            50: '#FBF7EE',
+                            100: '#F5EBD4',
+                        },
+                        forest: {
+                            DEFAULT: '#059669',
+                            light: '#10B981',
+                            dark: '#047857',
+                            50: '#ECFDF5',
+                        },
+                        slateDark: '#1E293B',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #FAF9F6; color: #1E293B; }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 8px;
+            border-radius: 999px;
+            background: #E2E8F0;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -6px;
+            background-color: #BF8B2E;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            border: 3px solid #FFFFFF;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            transition: transform 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background-color: #996D1F;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-up { animation: fadeInUp 0.65s ease-out forwards; }
+
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .animate-card { animation: slideUpFade 0.45s ease-out forwards; }
+
+        #toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-sdg12 selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- ====================================================
+         1. LIVE IMPACT TICKER BAR
+    ===================================================== -->
+    <div class="bg-slateDark text-white text-xs py-2 px-4 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <span class="inline-flex h-2 w-2 rounded-full bg-forest-light animate-ping"></span>
+                <span class="font-semibold tracking-wide uppercase text-slate-300">Dampak Komunitas SDG 12 Real-Time:</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-4 sm:gap-6 font-medium">
+                <span class="flex items-center gap-1.5 text-sdg12-light">
+                    <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                    <span><strong id="ticker-kwh" class="font-display font-bold">3.890</strong> kWh Energi Dihemat</span>
+                </span>
+                <span class="flex items-center gap-1.5 text-forest-light">
+                    <i data-lucide="cloud-off" class="w-3.5 h-3.5"></i>
+                    <span><strong id="ticker-co2" class="font-display font-bold">6.412</strong> kg CO₂e Dicegah</span>
+                </span>
+                <span class="hidden md:flex items-center gap-1.5 text-sky-300">
+                    <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                    <span><strong id="ticker-households" class="font-display font-bold">1.248</strong> Rumah Tangga Bergabung</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================
+         2. STICKY NAVIGATION HEADER
+    ===================================================== -->
+    <header class="sticky top-0 z-40 bg-cream/90 backdrop-blur-md border-b border-stone-200/80 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16 md:h-20">
+
+                <!-- Brand Logo -->
+                <a href="#" class="flex items-center gap-3 group">
+                    <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-sdg12 to-forest flex flex-col items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
+                        <span class="font-display font-extrabold text-sm leading-none">12</span>
+                        <i data-lucide="infinity" class="w-4 h-4 mt-0.5"></i>
+                    </div>
+                    <div>
+                        <span class="font-display font-extrabold text-slateDark text-lg md:text-xl tracking-tight block leading-tight">SDG 12 Energi</span>
+                        <span class="text-xs text-slate-500 hidden sm:block">Konsumsi &amp; Produksi Bertanggung Jawab</span>
+                    </div>
+                </a>
+
+                <!-- Desktop Navigation -->
+                <nav class="hidden lg:flex items-center space-x-6 text-sm font-medium text-slate-600">
+                    <a href="#edukasi" class="hover:text-sdg12 transition-colors">Mengapa SDG 12?</a>
+                    <a href="#kalkulator" class="hover:text-sdg12 transition-colors">Kalkulator Energi</a>
+                    <a href="#simulasi" class="hover:text-sdg12 transition-colors">Simulasi Alat</a>
+                    <a href="#komunitas" class="hover:text-forest transition-colors flex items-center gap-1">
+                        <span>Tantangan Harian</span>
+                        <span id="nav-komunitas-badge" class="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-forest/15 text-forest">6</span>
+                    </a>
+                    <a href="#aksi" class="hover:text-sdg12 transition-colors">Checklist Aksi</a>
+                </nav>
+
+                <!-- Score Pill + CTA + Mobile Toggle -->
+                <div class="flex items-center gap-2.5">
+                    <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-stone-200 shadow-sm" title="Skor SDG 12 Pribadi Anda">
+                        <i data-lucide="award" class="w-4 h-4 text-sdg12"></i>
+                        <span class="text-xs text-slate-500">Skor Saya:</span>
+                        <span id="user-score-display" class="font-display font-extrabold text-sm text-slateDark">0 Poin</span>
+                    </div>
+                    <a href="#kalkulator" class="hidden md:inline-flex items-center gap-1.5 bg-sdg12 hover:bg-sdg12-dark text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-all">
+                        <i data-lucide="calculator" class="w-4 h-4"></i>
+                        <span>Hitung Jejak Energi</span>
+                    </a>
+                    <button id="mobile-menu-btn" aria-label="Buka Menu" class="lg:hidden p-2.5 rounded-xl text-slate-600 hover:bg-stone-200/60 focus:outline-none">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Menu -->
+        <div id="mobile-menu" class="hidden lg:hidden bg-white border-b border-stone-200 px-4 pt-3 pb-5 space-y-2 shadow-lg">
+            <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-cream border border-stone-200 mb-2">
+                <span class="text-xs font-medium text-slate-600">Skor SDG 12 Saya</span>
+                <span id="mobile-user-score" class="font-display font-extrabold text-sm text-sdg12-dark">0 Poin</span>
+            </div>
+            <a href="#edukasi" class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-sdg12-50 hover:text-sdg12">Mengapa Energi &amp; SDG 12?</a>
+            <a href="#kalkulator" class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-sdg12-50 hover:text-sdg12">Kalkulator Jejak Energi</a>
+            <a href="#simulasi" class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-sdg12-50 hover:text-sdg12">Simulasi Perbandingan Alat</a>
+            <a href="#komunitas" class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-forest-50 hover:text-forest">Tantangan Energi Komunitas</a>
+            <a href="#aksi" class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-sdg12-50 hover:text-sdg12">Checklist Aksi Harian</a>
+        </div>
+    </header>
+
+    <!-- ====================================================
+         3. HERO SECTION
+    ===================================================== -->
+    <section class="relative overflow-hidden pt-10 pb-16 md:pt-16 md:pb-24 border-b border-stone-200/80">
+        <div class="absolute top-0 right-0 -translate-y-12 translate-x-1/4 w-96 h-96 bg-sdg12/15 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 translate-y-1/3 -translate-x-1/4 w-96 h-96 bg-forest/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+
+                <!-- Left Copy -->
+                <div class="lg:col-span-7 space-y-6 fade-in-up">
+                    <div class="inline-flex flex-wrap items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-stone-200 shadow-sm text-xs font-semibold text-slateDark">
+                        <span class="px-2 py-0.5 rounded-full bg-sdg12 text-white">Target 12.c &amp; 12.2</span>
+                        <span>Efisiensi Energi Bersih</span>
+                        <span class="text-slate-300">•</span>
+                        <span class="w-2 h-2 rounded-full bg-sdg12 animate-pulse inline-block"></span>
+                        <span>Kampanye Nasional SDG 12</span>
+                    </div>
+
+                    <h1 class="font-display font-extrabold text-3xl sm:text-5xl lg:text-[3.25rem] text-slateDark tracking-tight leading-[1.13]">
+                        Energi Paling Bersih Adalah Energi yang <span class="text-sdg12">Tidak Terbuang Sia-Sia.</span>
+                    </h1>
+
+                    <p class="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
+                        Setiap kilowatt listrik yang kita konsumsi meninggalkan jejak emisi karbon. Melalui <strong>SDG 12</strong>, mari ubah pola konsumsi energi dari boros menjadi bijak, efisien, dan berkelanjutan untuk generasi mendatang.
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row gap-3.5 pt-2">
+                        <a href="#kalkulator" class="inline-flex justify-center items-center gap-2.5 bg-sdg12 hover:bg-sdg12-dark text-white font-semibold px-6 py-4 rounded-2xl shadow-lg shadow-sdg12/20 transition-all transform hover:-translate-y-0.5">
+                            <i data-lucide="zap" class="w-5 h-5"></i>
+                            <span>Cek Skor Efisiensi Energimu</span>
+                        </a>
+                        <a href="#komunitas" class="inline-flex justify-center items-center gap-2.5 bg-white hover:bg-forest-50 text-slateDark border-2 border-forest/30 font-semibold px-6 py-4 rounded-2xl transition-all">
+                            <i data-lucide="users" class="w-5 h-5 text-forest"></i>
+                            <span>Ikuti Tantangan Komunitas</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Right Stats Card -->
+                <div class="lg:col-span-5">
+                    <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-stone-200/80 space-y-5">
+                        <div class="flex items-center justify-between border-b border-stone-100 pb-4">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-sdg12">Fakta Kunci SDG 12 Energi</span>
+                                <h2 class="font-display font-bold text-lg text-slateDark mt-0.5">Mengapa Perlu Bertindak Sekarang?</h2>
+                            </div>
+                            <div class="w-11 h-11 rounded-2xl bg-forest-50 text-forest flex items-center justify-center">
+                                <i data-lucide="leaf" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+
+                        <!-- Stat 1 -->
+                        <div class="p-4 rounded-2xl bg-cream border border-stone-200 flex items-start gap-4">
+                            <div class="p-2.5 rounded-xl bg-sdg12/15 text-sdg12 shrink-0">
+                                <i data-lucide="factory" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <span class="font-display font-extrabold text-2xl text-slateDark">~73%</span>
+                                <p class="text-xs sm:text-sm text-slate-600 mt-0.5">Emisi gas rumah kaca global berasal dari produksi dan konsumsi energi (listrik, panas, transportasi).</p>
+                            </div>
+                        </div>
+
+                        <!-- Stat 2 -->
+                        <div class="p-4 rounded-2xl bg-cream border border-stone-200 flex items-start gap-4">
+                            <div class="p-2.5 rounded-xl bg-forest/15 text-forest shrink-0">
+                                <i data-lucide="plug-zap" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <span class="font-display font-extrabold text-2xl text-slateDark">10–15%</span>
+                                <p class="text-xs sm:text-sm text-slate-600 mt-0.5">Tagihan listrik rumah tangga terbuang percuma akibat <em>vampire power</em> perangkat dalam mode standby.</p>
+                            </div>
+                        </div>
+
+                        <!-- Stat 3 -->
+                        <div class="p-4 rounded-2xl bg-cream border border-stone-200 flex items-start gap-4">
+                            <div class="p-2.5 rounded-xl bg-amber-500/15 text-amber-600 shrink-0">
+                                <i data-lucide="trending-down" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <span class="font-display font-extrabold text-2xl text-slateDark">40% Penghematan</span>
+                                <p class="text-xs sm:text-sm text-slate-600 mt-0.5">Potensi penurunan emisi karbon global hingga 2040 hanya dengan menerapkan efisiensi energi secara konsisten.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================
+         4. EDUCATION SECTION
+    ===================================================== -->
+    <section id="edukasi" class="py-16 md:py-24 bg-white border-b border-stone-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl mx-auto text-center mb-14">
+                <span class="text-sdg12 font-bold text-sm uppercase tracking-wider">Landasan Global PBB</span>
+                <h2 class="font-display font-extrabold text-2xl sm:text-4xl text-slateDark mt-2">
+                    Mengapa Energi Masuk dalam SDG 12?
+                </h2>
+                <p class="text-slate-600 mt-4 text-base sm:text-lg leading-relaxed">
+                    SDG 12 bukan hanya soal sampah plastik. Cara kita memproduksi, mensubsidi, dan menggunakan energi menentukan keberlanjutan sumber daya alam bumi.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Card 1: Target 12.c -->
+                <div class="rounded-3xl p-7 bg-sdg12-50/70 border border-sdg12/20 hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <div class="w-12 h-12 rounded-2xl bg-sdg12 text-white flex items-center justify-center font-display font-extrabold text-base shadow-sm">
+                                12.c
+                            </div>
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-white text-sdg12-dark border border-sdg12/25">Subsidi Energi</span>
+                        </div>
+                        <h3 class="font-display font-bold text-xl text-slateDark mb-3">
+                            Rasionalisasi Subsidi Bahan Bakar Fosil
+                        </h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            <strong>Target 12.c PBB</strong> mendorong penghapusan bertahap subsidi bahan bakar fosil yang tidak efisien dan mendorong pemborosan. Dana subsidi dialihkan untuk membiayai energi terbarukan serta perlindungan sosial tepat sasaran.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-sdg12/15 flex items-center gap-2 text-xs font-bold text-sdg12-dark">
+                        <i data-lucide="fuel" class="w-4 h-4"></i>
+                        <span>Transisi Menuju Energi Bersih</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: Target 12.2 & 12.6 -->
+                <div class="rounded-3xl p-7 bg-cream border border-stone-200 hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <div class="w-12 h-12 rounded-2xl bg-slateDark text-white flex items-center justify-center font-display font-extrabold text-base shadow-sm">
+                                12.2
+                            </div>
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-white text-slateDark border border-stone-200">Produksi</span>
+                        </div>
+                        <h3 class="font-display font-bold text-xl text-slateDark mb-3">
+                            Efisiensi Energi di Rantai Produksi
+                        </h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            Selaras dengan <strong>Target 12.2 &amp; 12.6</strong>, sektor manufaktur dan bisnis didorong mengadopsi teknologi rendah karbon, audit energi pabrik, serta ekonomi sirkular untuk menghasilkan lebih banyak produk dengan input energi minimal.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-stone-200 flex items-center gap-2 text-xs font-bold text-slateDark">
+                        <i data-lucide="recycle" class="w-4 h-4 text-forest"></i>
+                        <span>Produksi Rendah Emisi &amp; Sirkular</span>
+                    </div>
+                </div>
+
+                <!-- Card 3: Target 12.8 -->
+                <div class="rounded-3xl p-7 bg-forest-50/60 border border-forest/20 hover:shadow-lg transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <div class="w-12 h-12 rounded-2xl bg-forest text-white flex items-center justify-center font-display font-extrabold text-base shadow-sm">
+                                12.8
+                            </div>
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-white text-forest-dark border border-forest/25">Konsumsi</span>
+                        </div>
+                        <h3 class="font-display font-bold text-xl text-slateDark mb-3">
+                            Pola Konsumsi Rumah Tangga Bijak
+                        </h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            Melalui <strong>Target 12.8</strong>, konsumen diberdayakan dengan informasi label hemat energi (SKEM) agar memilih perangkat efisiensi tinggi, mengatur suhu AC optimal, dan mengurangi ketergantungan kendaraan pribadi berbahan bakar fosil.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-forest/15 flex items-center gap-2 text-xs font-bold text-forest-dark">
+                        <i data-lucide="check-circle-2" class="w-4 h-4 text-forest"></i>
+                        <span>Gaya Hidup Sadar Energi</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================
+         5. ENERGY CALCULATOR
+    ===================================================== -->
+    <section id="kalkulator" class="py-16 md:py-24 bg-cream border-y border-stone-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl mx-auto text-center mb-12">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sdg12/15 text-sdg12-dark text-xs font-bold uppercase tracking-wider">
+                    <i data-lucide="sliders" class="w-3.5 h-3.5"></i> Alat Interaktif
+                </span>
+                <h2 class="font-display font-extrabold text-2xl sm:text-4xl text-slateDark mt-2">
+                    Kalkulator Jejak Karbon &amp; Efisiensi Energi
+                </h2>
+                <p class="text-slate-600 mt-3 text-base">
+                    Sesuaikan parameter konsumsi energi bulanan Anda untuk melihat estimasi emisi CO₂, biaya, serta peringkat efisiensi energi Anda.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+                <!-- Input Panel -->
+                <div class="lg:col-span-7 bg-white rounded-3xl p-6 sm:p-8 shadow-md border border-stone-200/70 space-y-7">
+
+                    <!-- Mode Toggle: kWh vs Rp -->
+                    <div>
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                            <label class="font-display font-bold text-slateDark flex items-center gap-2">
+                                <i data-lucide="zap" class="w-5 h-5 text-sdg12"></i>
+                                <span>Konsumsi Listrik Bulanan</span>
+                            </label>
+                            <div class="inline-flex rounded-xl bg-stone-100 p-1 text-xs font-semibold">
+                                <button type="button" id="btn-mode-kwh" class="px-3 py-1.5 rounded-lg bg-white text-slateDark shadow-sm transition-all">Input kWh</button>
+                                <button type="button" id="btn-mode-rp" class="px-3 py-1.5 rounded-lg text-slate-500 hover:text-slateDark transition-all">Estimasi Tagihan (Rp)</button>
+                            </div>
+                        </div>
+
+                        <!-- kWh Slider -->
+                        <div id="input-kwh-wrapper" class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-500">Pemakaian listrik per bulan:</span>
+                                <span class="font-display font-bold text-sdg12 text-lg"><span id="val-kwh">300</span> kWh</span>
+                            </div>
+                            <input type="range" id="slider-kwh" min="50" max="1500" step="10" value="300" class="w-full">
+                            <div class="flex justify-between text-xs text-slate-400">
+                                <span>50 kWh (Hemat)</span>
+                                <span>500 kWh (Menengah)</span>
+                                <span>1.500 kWh (Tinggi)</span>
+                            </div>
+                        </div>
+
+                        <!-- Rp Slider (hidden by default) -->
+                        <div id="input-rp-wrapper" class="hidden space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-500">Tagihan listrik per bulan:</span>
+                                <span class="font-display font-bold text-sdg12 text-lg">Rp <span id="val-rp">433.500</span></span>
+                            </div>
+                            <input type="range" id="slider-rp" min="75000" max="2500000" step="25000" value="433500" class="w-full">
+                            <p class="text-xs text-slate-400">*Asumsi tarif dasar listrik non-subsidi rata-rata Rp 1.445 / kWh</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-stone-100">
+
+                    <!-- AC Hours Slider -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label for="slider-ac" class="font-display font-bold text-slateDark flex items-center gap-2">
+                                <i data-lucide="wind" class="w-5 h-5 text-sky-500"></i>
+                                <span>Durasi Penggunaan AC / Pendingin Ruangan</span>
+                            </label>
+                            <span class="font-display font-bold text-slateDark text-base"><span id="val-ac">6</span> jam/hari</span>
+                        </div>
+                        <input type="range" id="slider-ac" min="0" max="24" step="1" value="6" class="w-full">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>0 jam (Tanpa AC)</span>
+                            <span>8 jam (Malam hari)</span>
+                            <span>24 jam (Non-stop)</span>
+                        </div>
+                    </div>
+
+                    <hr class="border-stone-100">
+
+                    <!-- Transport Selector -->
+                    <div>
+                        <label class="font-display font-bold text-slateDark flex items-center gap-2 mb-3">
+                            <i data-lucide="car" class="w-5 h-5 text-forest"></i>
+                            <span>Kebiasaan Transportasi Utama Harian</span>
+                        </label>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="transport-options">
+                            <button type="button" data-transport="public" data-co2="25" class="transport-btn p-3.5 rounded-2xl border-2 border-forest bg-forest-50/70 text-left transition-all">
+                                <div class="flex items-center justify-between mb-1">
+                                    <i data-lucide="train" class="w-5 h-5 text-forest"></i>
+                                    <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-forest text-white">Terbaik</span>
+                                </div>
+                                <div class="font-semibold text-sm text-slateDark">Transportasi Umum / Sepeda</div>
+                                <div class="text-xs text-slate-500 mt-0.5">+25 kg CO₂/bln</div>
+                            </button>
+                            <button type="button" data-transport="motor" data-co2="65" class="transport-btn p-3.5 rounded-2xl border-2 border-stone-200 hover:border-sdg12/50 bg-white text-left transition-all">
+                                <div class="flex items-center justify-between mb-1">
+                                    <i data-lucide="bike" class="w-5 h-5 text-sdg12"></i>
+                                </div>
+                                <div class="font-semibold text-sm text-slateDark">Sepeda Motor Pribadi</div>
+                                <div class="text-xs text-slate-500 mt-0.5">+65 kg CO₂/bln</div>
+                            </button>
+                            <button type="button" data-transport="car" data-co2="180" class="transport-btn p-3.5 rounded-2xl border-2 border-stone-200 hover:border-sdg12/50 bg-white text-left transition-all">
+                                <div class="flex items-center justify-between mb-1">
+                                    <i data-lucide="car-front" class="w-5 h-5 text-rose-500"></i>
+                                </div>
+                                <div class="font-semibold text-sm text-slateDark">Mobil Pribadi (BBM)</div>
+                                <div class="text-xs text-slate-500 mt-0.5">+180 kg CO₂/bln</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <hr class="border-stone-100">
+
+                    <!-- Habit Checkboxes -->
+                    <div>
+                        <label class="font-display font-bold text-slateDark flex items-center gap-2 mb-3">
+                            <i data-lucide="power" class="w-5 h-5 text-amber-500"></i>
+                            <span>Kebiasaan Perangkat Elektronik di Rumah</span>
+                        </label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-stone-200 cursor-pointer hover:bg-cream transition-colors">
+                                <input type="checkbox" id="chk-led" checked class="w-5 h-5 accent-sdg12 rounded">
+                                <div class="text-sm">
+                                    <span class="font-semibold text-slateDark block">Mayoritas Lampu LED</span>
+                                    <span class="text-xs text-slate-500">Menghemat hingga 12% listrik</span>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-3 p-3.5 rounded-2xl border border-stone-200 cursor-pointer hover:bg-cream transition-colors">
+                                <input type="checkbox" id="chk-unplug" class="w-5 h-5 accent-sdg12 rounded">
+                                <div class="text-sm">
+                                    <span class="font-semibold text-slateDark block">Cabut Colokan Standby</span>
+                                    <span class="text-xs text-slate-500">Kurangi 10% beban vampire</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Output Panel -->
+                <div class="lg:col-span-5 bg-slateDark text-white rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 sticky top-24">
+                    <div class="flex items-center justify-between border-b border-slate-700 pb-5">
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Hasil Analisis Real-Time</span>
+                            <h3 class="font-display font-bold text-xl mt-0.5">Skor Efisiensi Energi Anda</h3>
+                        </div>
+                        <div id="grade-badge" class="w-16 h-16 rounded-2xl bg-forest text-white flex flex-col items-center justify-center shadow-lg transition-colors duration-300">
+                            <span class="text-[10px] uppercase font-bold tracking-wider opacity-90">Skor</span>
+                            <span id="grade-letter" class="font-display font-extrabold text-3xl leading-none">B</span>
+                        </div>
+                    </div>
+
+                    <div id="grade-status-box" class="p-3.5 rounded-2xl bg-slate-800/90 border border-slate-700 flex items-center gap-3">
+                        <i data-lucide="award" class="w-6 h-6 text-forest-light shrink-0"></i>
+                        <div>
+                            <p id="grade-title" class="font-semibold text-sm text-forest-light">Efisien (Baik)</p>
+                            <p id="grade-desc" class="text-xs text-slate-300 mt-0.5">Konsumsi Anda berada di bawah rata-rata jejak karbon perkotaan.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 rounded-2xl bg-slate-800/70 border border-slate-700/80">
+                            <div class="flex items-center gap-1.5 text-slate-400 text-xs mb-1">
+                                <i data-lucide="cloud" class="w-4 h-4 text-sdg12-light"></i>
+                                <span>Estimasi Emisi CO₂</span>
+                            </div>
+                            <div class="font-display font-extrabold text-2xl sm:text-3xl text-white">
+                                <span id="out-co2">295</span> <span class="text-sm font-normal text-slate-400">kg/bln</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-1">Setara <span id="out-trees" class="text-forest-light font-semibold">16</span> pohon dewasa/bln</p>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-800/70 border border-slate-700/80">
+                            <div class="flex items-center gap-1.5 text-slate-400 text-xs mb-1">
+                                <i data-lucide="wallet" class="w-4 h-4 text-forest-light"></i>
+                                <span>Estimasi Biaya Listrik</span>
+                            </div>
+                            <div class="font-display font-extrabold text-xl sm:text-2xl text-white mt-1">
+                                Rp <span id="out-cost">433.500</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-1.5"><span id="out-kwh-summary">300</span> kWh terpakai/bln</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2.5 pt-2">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-sdg12-light flex items-center gap-1.5">
+                            <i data-lucide="lightbulb" class="w-4 h-4"></i>
+                            <span>Rekomendasi Penghematan Konkret</span>
+                        </h4>
+                        <ul id="recommendation-list" class="space-y-2 text-xs sm:text-sm text-slate-200">
+                            <!-- Filled dynamically -->
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================
+         6. APPLIANCE SIMULATION
+    ===================================================== -->
+    <section id="simulasi" class="py-16 md:py-24 bg-white border-b border-stone-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl mx-auto text-center mb-12">
+                <span class="text-sdg12 font-bold text-sm uppercase tracking-wider">Bukti Nyata Efisiensi</span>
+                <h2 class="font-display font-extrabold text-2xl sm:text-4xl text-slateDark mt-2">
+                    Simulasi Perbandingan Peralatan Rumah Tangga
+                </h2>
+                <p class="text-slate-600 mt-3 text-base">
+                    Bandingkan konsumsi energi dan biaya tahunan antara teknologi konvensional dengan teknologi hemat energi berstandar SDG 12.
+                </p>
+            </div>
+
+            <!-- Scenario Tabs -->
+            <div class="flex flex-wrap justify-center gap-2.5 mb-10" id="sim-tabs">
+                <button type="button" data-sim="lamp" class="sim-tab-btn px-5 py-3 rounded-xl font-semibold text-sm bg-sdg12 text-white shadow-md transition-all flex items-center gap-2">
+                    <i data-lucide="lightbulb" class="w-4 h-4"></i>
+                    <span>Lampu Pijar vs LED</span>
+                </button>
+                <button type="button" data-sim="ac" class="sim-tab-btn px-5 py-3 rounded-xl font-semibold text-sm bg-stone-100 text-slate-600 hover:bg-stone-200 transition-all flex items-center gap-2">
+                    <i data-lucide="snowflake" class="w-4 h-4"></i>
+                    <span>AC Non-Inverter vs Inverter</span>
+                </button>
+                <button type="button" data-sim="standby" class="sim-tab-btn px-5 py-3 rounded-xl font-semibold text-sm bg-stone-100 text-slate-600 hover:bg-stone-200 transition-all flex items-center gap-2">
+                    <i data-lucide="plug" class="w-4 h-4"></i>
+                    <span>Standby Power vs Cabut Daya</span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-cream rounded-3xl p-6 sm:p-10 border border-stone-200/80">
+                <!-- Chart -->
+                <div class="lg:col-span-7 bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-stone-100">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 id="sim-chart-title" class="font-display font-bold text-base sm:text-lg text-slateDark">Konsumsi Listrik Tahunan (kWh/Tahun)</h3>
+                        <span class="text-xs font-medium px-2.5 py-1 rounded-lg bg-stone-100 text-slate-600">Simulasi 1 Tahun</span>
+                    </div>
+                    <div class="relative w-full h-64 sm:h-72">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Scenario Details -->
+                <div class="lg:col-span-5 space-y-5">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-forest-50 border border-forest/20 text-forest-dark text-xs font-bold">
+                        <i data-lucide="trending-down" class="w-4 h-4 text-forest"></i>
+                        <span id="sim-saving-badge">Hemat hingga 85% Energi</span>
+                    </div>
+                    <h3 id="sim-heading" class="font-display font-extrabold text-2xl text-slateDark">
+                        10 Titik Lampu Rumah (Nyala 8 Jam/Hari)
+                    </h3>
+                    <p id="sim-description" class="text-slate-600 text-sm leading-relaxed">
+                        Lampu pijar konvensional (60W) membuang sebagian besar energinya menjadi panas. LED (9W) memberikan cahaya setara dengan konsumsi daya jauh lebih rendah dan umur pakai 10× lebih lama.
+                    </p>
+                    <div class="grid grid-cols-2 gap-3.5 pt-2">
+                        <div class="p-4 rounded-2xl bg-white border border-stone-200">
+                            <span class="text-xs text-slate-500 block">Penghematan Biaya/Thn</span>
+                            <span id="sim-money-saved" class="font-display font-extrabold text-lg sm:text-xl text-forest mt-1 block">Rp 2.152.000</span>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-white border border-stone-200">
+                            <span class="text-xs text-slate-500 block">Reduksi Emisi CO₂/Thn</span>
+                            <span id="sim-co2-saved" class="font-display font-extrabold text-lg sm:text-xl text-sdg12 mt-1 block">1.266 kg CO₂</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================
+         7. COMMUNITY CHALLENGES FEED
+    ===================================================== -->
+    <section id="komunitas" class="py-16 md:py-24 bg-cream border-b border-stone-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            <!-- Section Header -->
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-forest-50 text-forest text-xs font-bold uppercase tracking-wider mb-2">
+                        <span class="w-2 h-2 rounded-full bg-forest animate-pulse"></span>
+                        <span>Papan Tantangan Komunitas</span>
+                    </div>
+                    <h2 class="font-display font-extrabold text-2xl sm:text-4xl text-slateDark">
+                        Tantangan &amp; Berbagi Energi Komunitas
+                    </h2>
+                    <p class="text-slate-600 mt-2 text-sm sm:text-base max-w-2xl">
+                        Ikuti tantangan hemat energi dari sesama warga dan kumpulkan poin SDG 12. Setiap langkah kecil berdampak nyata.
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <div class="inline-flex p-1 rounded-2xl bg-white border border-stone-200" id="challenge-filters">
+                        <button type="button" data-filter="all" class="chal-filter-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slateDark text-white shadow-sm transition-all">
+                            Semua (<span id="count-all-chal">6</span>)
+                        </button>
+                        <button type="button" data-filter="listrik" class="chal-filter-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-sdg12 transition-all flex items-center gap-1.5">
+                            <i data-lucide="zap" class="w-3.5 h-3.5 text-sdg12"></i>
+                            <span>Hemat Listrik (<span id="count-listrik">4</span>)</span>
+                        </button>
+                        <button type="button" data-filter="transportasi" class="chal-filter-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-forest transition-all flex items-center gap-1.5">
+                            <i data-lucide="bike" class="w-3.5 h-3.5 text-forest"></i>
+                            <span>Transportasi (<span id="count-transportasi">1</span>)</span>
+                        </button>
+                        <button type="button" data-filter="terbarukan" class="chal-filter-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-amber-600 transition-all flex items-center gap-1.5">
+                            <i data-lucide="sun" class="w-3.5 h-3.5 text-amber-500"></i>
+                            <span>Terbarukan (<span id="count-terbarukan">1</span>)</span>
+                        </button>
+                    </div>
+                    <button type="button" id="open-challenge-modal-btn" class="inline-flex items-center gap-2 bg-sdg12 hover:bg-sdg12-dark text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-2xl shadow-sm transition-all">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>+ Bagikan Tantangan</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Challenge Cards Grid -->
+            <div id="challenge-feed-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Rendered dynamically via JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================
+         8. DAILY ACTION CHECKLIST (PLEDGE STYLE)
+    ===================================================== -->
+    <section id="aksi" class="py-16 md:py-24 bg-white border-b border-stone-200/80">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-10">
+                <span class="text-sdg12 font-bold text-sm uppercase tracking-wider">Mulai Dari Diri Sendiri</span>
+                <h2 class="font-display font-extrabold text-2xl sm:text-4xl text-slateDark mt-2">
+                    Checklist Aksi Harian SDG 12 Energi
+                </h2>
+                <p class="text-slate-600 mt-3 text-base">
+                    Centang kebiasaan hemat energi yang sudah Anda lakukan hari ini dan kumpulkan poin keberlanjutan Anda!
+                </p>
+            </div>
+
+            <!-- Badge & Progress Card -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-lg border border-stone-200/90 mb-8">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+                    <div class="flex items-center gap-4">
+                        <div id="badge-icon-box" class="w-14 h-14 rounded-2xl bg-sdg12-50 border border-sdg12/30 text-sdg12 flex items-center justify-center shrink-0">
+                            <i data-lucide="sprout" class="w-7 h-7"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Level Komitmen Anda</span>
+                            <h3 id="pledge-rank-title" class="font-display font-extrabold text-xl text-slateDark">Pemula Sadar Energi 🌱</h3>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 self-end sm:self-center">
+                        <div class="text-right">
+                            <span id="pledge-points" class="font-display font-extrabold text-2xl text-sdg12">0</span>
+                            <span class="text-sm text-slate-500 font-medium">/ 100 Poin</span>
+                        </div>
+                        <button type="button" id="reset-pledges-btn" title="Reset Checklist" class="p-2.5 rounded-xl bg-cream hover:bg-stone-200 text-slate-600 transition-colors">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="w-full h-4 bg-stone-100 rounded-full overflow-hidden p-0.5 border border-stone-200/70">
+                    <div id="pledge-progress-bar" class="h-full bg-gradient-to-r from-sdg12 to-forest rounded-full transition-all duration-500 ease-out" style="width: 0%;"></div>
+                </div>
+                <p id="pledge-feedback" class="text-xs text-slate-500 mt-3">
+                    Pilih aksi di bawah ini untuk mulai berkontribusi pada pengurangan beban puncak listrik nasional.
+                </p>
+            </div>
+
+            <!-- Pledge Checklist Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="pledges-grid">
+
+                <!-- Item 1 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-sdg12 cursor-pointer transition-all shadow-sm">
+                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-sdg12-dark bg-sdg12-50 px-2 py-0.5 rounded-md">AC &amp; Pendingin</span>
+                            <span class="text-xs font-bold text-slate-500">+15 poin</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Atur Suhu AC di 24°C – 25°C</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Setiap kenaikan 1°C menghemat konsumsi listrik kompresor AC hingga 6–10%.</span>
+                    </div>
+                </label>
+
+                <!-- Item 2 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-sdg12 cursor-pointer transition-all shadow-sm">
+                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-sdg12-dark bg-sdg12-50 px-2 py-0.5 rounded-md">Hemat Listrik</span>
+                            <span class="text-xs font-bold text-slate-500">+15 poin</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Matikan &amp; Cabut Charger / TV Saat Tidak Dipakai</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Mencegah kebocoran arus listrik <em>standby power</em> sepanjang malam.</span>
+                    </div>
+                </label>
+
+                <!-- Item 3 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-forest cursor-pointer transition-all shadow-sm">
+                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-forest rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-forest bg-forest-50 px-2 py-0.5 rounded-md">Alami &amp; Hijau</span>
+                            <span class="text-xs font-bold text-slate-500">+15 poin</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Manfaatkan Pencahayaan &amp; Ventilasi Alami Siang Hari</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Buka tirai jendela dan matikan seluruh lampu ruangan di siang hari.</span>
+                    </div>
+                </label>
+
+                <!-- Item 4 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-forest cursor-pointer transition-all shadow-sm">
+                    <input type="checkbox" data-pts="20" class="pledge-chk mt-1 w-5 h-5 accent-forest rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-forest bg-forest-50 px-2 py-0.5 rounded-md">Transportasi 12.c</span>
+                            <span class="text-xs font-bold text-slate-500">+20 poin</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Gunakan Transportasi Publik / Jalan Kaki / Bersepeda</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Mengurangi konsumsi BBM fosil secara langsung (mendukung Target SDG 12.c).</span>
+                    </div>
+                </label>
+
+                <!-- Item 5 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-sdg12 cursor-pointer transition-all shadow-sm">
+                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-sdg12-dark bg-sdg12-50 px-2 py-0.5 rounded-md">Hemat Air &amp; Energi</span>
+                            <span class="text-xs font-bold text-slate-500">+15 poin</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Cuci Pakaian Sekaligus dengan Kapasitas Penuh</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Mengoptimalkan daya motor mesin cuci &amp; menjemur pakaian dengan sinar matahari.</span>
+                    </div>
+                </label>
+
+                <!-- Item 6 -->
+                <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-sdg12 cursor-pointer transition-all shadow-sm">
+                    <input type="checkbox" data-pts="20" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-sdg12-dark bg-sdg12-50 px-2 py-0.5 rounded-md">Label SKEM 12.8</span>
+                            <span class="text-xs font-bold text-slate-500">+20 poin</span>
+                        </div>
+                        <span class="font-display font-bold text-slateDark block text-sm sm:text-base mt-1.5">Pilih Elektronik Berlabel Tanda Hemat Energi (Bintang 4/5)</span>
+                        <span class="text-xs text-slate-500 mt-0.5 block">Mendorong produsen memproduksi perangkat efisien sesuai standar SKEM nasional.</span>
+                    </div>
+                </label>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================
+         9. POST CHALLENGE MODAL
+    ===================================================== -->
+    <div id="challenge-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slateDark/60 backdrop-blur-sm transition-opacity" id="challenge-modal-backdrop"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative w-full max-w-lg rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-stone-200 animate-card">
+                <div class="flex items-center justify-between border-b border-stone-100 pb-4 mb-5">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-sdg12">Kontribusi Komunitas</span>
+                        <h3 class="font-display font-extrabold text-xl text-slateDark">Bagikan Tantangan Energi Baru</h3>
+                    </div>
+                    <button type="button" id="close-challenge-modal-btn" class="p-2 rounded-xl text-slate-400 hover:bg-stone-100 hover:text-slateDark transition-colors">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <form id="post-challenge-form" class="space-y-4">
+                    <div>
+                        <label for="chal-title" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Judul Tantangan</label>
+                        <input type="text" id="chal-title" required placeholder="Contoh: Matikan AC 1 Jam Lebih Awal" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-sdg12 focus:ring-2 focus:ring-sdg12/20 outline-none text-sm">
+                    </div>
+
+                    <div>
+                        <label for="chal-category" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Kategori</label>
+                        <select id="chal-category" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-sdg12 focus:ring-2 focus:ring-sdg12/20 outline-none text-sm bg-white">
+                            <option value="listrik">Hemat Listrik</option>
+                            <option value="transportasi">Transportasi Bersih</option>
+                            <option value="terbarukan">Energi Terbarukan</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div>
+                            <label for="chal-kwh" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Target Penghematan (kWh)</label>
+                            <input type="number" id="chal-kwh" step="0.1" min="0.1" required value="1.0" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-sdg12 focus:ring-2 focus:ring-sdg12/20 outline-none text-sm">
+                        </div>
+                        <div>
+                            <label for="chal-location" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Lokasi / Wilayah</label>
+                            <input type="text" id="chal-location" required placeholder="Contoh: Jabodetabek" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-sdg12 focus:ring-2 focus:ring-sdg12/20 outline-none text-sm">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="chal-desc" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Deskripsi Tantangan</label>
+                        <textarea id="chal-desc" rows="3" required placeholder="Jelaskan cara mengambil tantangan ini dan dampaknya..." class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-sdg12 focus:ring-2 focus:ring-sdg12/20 outline-none text-sm"></textarea>
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-end gap-3">
+                        <button type="button" id="cancel-challenge-btn" class="px-5 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-stone-100 transition-colors">Batal</button>
+                        <button type="submit" class="px-6 py-3 rounded-xl bg-sdg12 hover:bg-sdg12-dark text-white text-sm font-bold shadow-md transition-all flex items-center gap-2">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                            <span>Publikasikan (+30 Poin)</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================
+         10. FOOTER
+    ===================================================== -->
+    <footer class="bg-slateDark text-slate-300 pt-14 pb-10 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-10 pb-10 border-b border-slate-800">
+
+                <!-- Brand & Mission -->
+                <div class="md:col-span-5 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sdg12 to-forest flex flex-col items-center justify-center text-white font-display font-extrabold shadow-md">
+                            <span class="text-xs leading-none">12</span>
+                            <i data-lucide="infinity" class="w-3.5 h-3.5 mt-0.5"></i>
+                        </div>
+                        <span class="font-display font-bold text-white text-lg">SDG 12 Energi Berkelanjutan</span>
+                    </div>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        Platform edukasi publik untuk mempercepat pencapaian Tujuan Pembangunan Berkelanjutan ke-12 melalui efisiensi energi, pengurangan emisi karbon, dan transisi energi bersih di Indonesia.
+                    </p>
+                </div>
+
+                <!-- SDG 12 Target References -->
+                <div class="md:col-span-4 space-y-3">
+                    <h4 class="font-display font-bold text-white text-xs uppercase tracking-wider">Referensi Target PBB SDG 12</h4>
+                    <ul class="space-y-2 text-xs sm:text-sm text-slate-400">
+                        <li><strong class="text-sdg12-light">Target 12.2:</strong> Pengelolaan berkelanjutan dan pemanfaatan efisien sumber daya alam.</li>
+                        <li><strong class="text-sdg12-light">Target 12.6:</strong> Mendorong perusahaan mengadopsi praktik berkelanjutan.</li>
+                        <li><strong class="text-sdg12-light">Target 12.8:</strong> Kesadaran masyarakat terhadap gaya hidup selaras dengan alam.</li>
+                        <li><strong class="text-sdg12-light">Target 12.c:</strong> Rasionalisasi subsidi bahan bakar fosil yang boros.</li>
+                    </ul>
+                </div>
+
+                <!-- Quick Links -->
+                <div class="md:col-span-3 space-y-3">
+                    <h4 class="font-display font-bold text-white text-xs uppercase tracking-wider">Navigasi</h4>
+                    <ul class="space-y-2 text-sm text-slate-400">
+                        <li><a href="#edukasi" class="hover:text-sdg12-light transition-colors">Landasan SDG 12 Energi</a></li>
+                        <li><a href="#kalkulator" class="hover:text-sdg12-light transition-colors">Kalkulator Jejak Energi</a></li>
+                        <li><a href="#simulasi" class="hover:text-sdg12-light transition-colors">Simulasi Peralatan</a></li>
+                        <li><a href="#komunitas" class="hover:text-forest-light transition-colors">Tantangan Komunitas</a></li>
+                        <li><a href="#aksi" class="hover:text-sdg12-light transition-colors">Checklist Aksi Harian</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="pt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+                <p>&copy; 2026 Kampanye Edukasi SDG 12 — Konsumsi dan Produksi yang Bertanggung Jawab.</p>
+                <p>Faktor emisi referensi jaringan listrik Indonesia: ~0,85 kg CO₂e / kWh.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- APPLICATION LOGIC -->
+    <script src="./menu.js"></script>
+
+</body>
+</html>
