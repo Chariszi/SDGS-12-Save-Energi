@@ -3,137 +3,147 @@
  * Dashboard Dampak Komunitas SDG 12.
  *
  * Fitur:
- *  - Animasi counter KPI (kWh, CO₂, rumah tangga, Rp) saat scroll masuk viewport
- *  - Sinkronisasi KPI dengan nilai ticker setiap 5 detik
- *  - Animasi progress bar distribusi dampak
+ *  - KPI (kWh, CO₂, rumah tangga, Rp) dari /api/impact
+ *  - Animasi counter saat section #dampak masuk viewport
+ *  - Progress bar distribusi dampak per kategori
  *  - Observer untuk animasi entrance tiap section (#urgensi, #inovasi, #dampak)
  *  - Keyboard accessibility: ESC tutup modal tantangan
  *  - Focus trap di dalam modal tantangan
  */
 
 (function () {
-    // ── Konfigurasi target KPI ─────────────────────────────────
-    const kpiTargets = {
-        'kpi-kwh-saved':     { target: 3890, decimals: 0 },
-        'kpi-co2-prevented': { target: 6412, decimals: 0 },
-        'kpi-households':    { target: 1248, decimals: 0 },
-        'kpi-rp-saved':      { target: 562,  decimals: 0 },
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const kpiConfig = {
+        'kpi-kwh-saved': 'kwh_saved',
+        'kpi-co2-prevented': 'co2_prevented',
+        'kpi-households': 'households',
+        'kpi-rp-saved': 'rp_saved_million',
+    };
+    const barConfig = {
+        listrik: { bar: 'bar-listrik', label: 'bar-label-listrik' },
+        transportasi: { bar: 'bar-transportasi', label: 'bar-label-transportasi' },
+        terbarukan: { bar: 'bar-terbarukan', label: 'bar-label-terbarukan' },
     };
 
+    let latestImpact = null;
     let kpiAnimated = false;
+    const kpiFrames = {};
 
     // ── Animasi counter angka (ease-out cubic) ─────────────────
-    function animateKPI(id, target, decimals) {
+    function stopKPI(id) {
+        if (kpiFrames[id]) {
+            cancelAnimationFrame(kpiFrames[id]);
+            delete kpiFrames[id];
+        }
+    }
+
+    function animateKPI(id, target) {
         const el = document.getElementById(id);
         if (!el) return;
+        stopKPI(id);
 
         const duration = 1800;
-        const start    = performance.now();
+        const start = performance.now();
 
         function step(now) {
             const progress = Math.min((now - start) / duration, 1);
-            const eased    = 1 - Math.pow(1 - progress, 3);
-            const current  = eased * target;
-
-            el.textContent = decimals > 0
-                ? current.toLocaleString('id-ID', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
-                : Math.round(current).toLocaleString('id-ID');
-
-            if (progress < 1) requestAnimationFrame(step);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = Math.round(eased * target).toLocaleString('id-ID');
+            if (progress < 1) {
+                kpiFrames[id] = requestAnimationFrame(step);
+            } else {
+                delete kpiFrames[id];
+            }
         }
-        requestAnimationFrame(step);
+        kpiFrames[id] = requestAnimationFrame(step);
+    }
+
+    function setKPI(id, value) {
+        stopKPI(id);
+        const el = document.getElementById(id);
+        if (el) el.textContent = Math.round(value).toLocaleString('id-ID');
+    }
+
+    function renderImpact(impact, animate) {
+        Object.entries(kpiConfig).forEach(([id, key]) => {
+            const value = impact[key] || 0;
+            if (animate && !reduceMotion) {
+                animateKPI(id, value);
+            } else {
+                setKPI(id, value);
+            }
+        });
+
+        const applyBars = () => {
+            Object.entries(barConfig).forEach(([key, ids]) => {
+                const percent = impact.distribution?.[key] ?? 0;
+                const bar = document.getElementById(ids.bar);
+                const label = document.getElementById(ids.label);
+                if (bar) bar.style.width = `${percent}%`;
+                if (label) label.textContent = `${percent}%`;
+            });
+        };
+
+        if (animate && !reduceMotion) {
+            setTimeout(applyBars, 300);
+        } else {
+            applyBars();
+        }
     }
 
     // ── Trigger animasi saat section #dampak masuk viewport ───
     function triggerKPIAnimation() {
-        if (kpiAnimated) return;
+        if (kpiAnimated || !latestImpact) return;
 
         const dampakSection = document.getElementById('dampak');
         if (!dampakSection) return;
 
-        const rect = dampakSection.getBoundingClientRect();
-        if (rect.top < window.innerHeight * 0.85) {
+        if (dampakSection.getBoundingClientRect().top < window.innerHeight * 0.85) {
             kpiAnimated = true;
-
-            Object.entries(kpiTargets).forEach(([id, cfg]) => {
-                animateKPI(id, cfg.target, cfg.decimals);
-            });
-
-            // Animasi progress bar dampak setelah sedikit delay
-            setTimeout(() => {
-                const bars = {
-                    'bar-listrik':      '62%',
-                    'bar-transportasi': '25%',
-                    'bar-terbarukan':   '13%',
-                };
-                Object.entries(bars).forEach(([id, width]) => {
-                    const el = document.getElementById(id);
-                    if (el) el.style.width = width;
-                });
-            }, 300);
+            renderImpact(latestImpact, true);
         }
     }
 
-    window.addEventListener('scroll', triggerKPIAnimation, { passive: true });
-    triggerKPIAnimation(); // Jalankan sekali saat load, kalau section sudah terlihat
-
-    // ── Sinkronisasi KPI dengan nilai ticker (setiap 5 detik) ─
-    function syncKPIWithTicker() {
-        if (!kpiAnimated) return; // Hanya sync setelah animasi awal selesai
-
-        const tickerKwhEl       = document.getElementById('ticker-kwh');
-        const tickerCo2El       = document.getElementById('ticker-co2');
-        const tickerHouseholdsEl = document.getElementById('ticker-households');
-
-        const kpiKwhEl       = document.getElementById('kpi-kwh-saved');
-        const kpiCo2El       = document.getElementById('kpi-co2-prevented');
-        const kpiHouseholdsEl = document.getElementById('kpi-households');
-        const kpiRpEl        = document.getElementById('kpi-rp-saved');
-
-        if (tickerKwhEl && kpiKwhEl)
-            kpiKwhEl.textContent = tickerKwhEl.textContent;
-
-        if (tickerCo2El && kpiCo2El)
-            kpiCo2El.textContent = tickerCo2El.textContent;
-
-        if (tickerHouseholdsEl && kpiHouseholdsEl)
-            kpiHouseholdsEl.textContent = tickerHouseholdsEl.textContent;
-
-        // Konversi kWh → Juta Rp (asumsi Rp 1.445/kWh)
-        if (tickerKwhEl && kpiRpEl) {
-            const kwh    = parseInt(tickerKwhEl.textContent.replace(/\./g, '').replace(/,/g, ''), 10) || 3890;
-            const jutaRp = Math.round((kwh * 1445) / 1_000_000);
-            kpiRpEl.textContent = jutaRp.toLocaleString('id-ID');
+    window.addEventListener('impact:update', (event) => {
+        latestImpact = event.detail;
+        if (kpiAnimated) {
+            renderImpact(latestImpact, false);
+        } else {
+            triggerKPIAnimation();
         }
-    }
-
-    setInterval(syncKPIWithTicker, 5000);
-
-    // ── Animasi entrance scroll untuk kartu di tiga section ───
-    const animateOnScrollEls = document.querySelectorAll(
-        '#urgensi .rounded-3xl, #inovasi .rounded-3xl, #dampak .rounded-3xl'
-    );
-
-    const entranceObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.style.opacity   = '1';
-                entry.target.style.transform = 'translateY(0)';
-                entranceObserver.unobserve(entry.target);
-            }
-        });
-    }, { threshold: 0.1 });
-
-    animateOnScrollEls.forEach(el => {
-        el.style.opacity    = '0';
-        el.style.transform  = 'translateY(20px)';
-        el.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
-        entranceObserver.observe(el);
     });
 
+    window.addEventListener('scroll', triggerKPIAnimation, { passive: true });
+    triggerKPIAnimation();
+
+    // ── Animasi entrance scroll untuk kartu di tiga section ───
+    if (!reduceMotion) {
+        const animateOnScrollEls = document.querySelectorAll(
+            '#urgensi .rounded-3xl, #inovasi .rounded-3xl, #dampak .rounded-3xl'
+        );
+
+        const entranceObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                    entranceObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        animateOnScrollEls.forEach((el) => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+            entranceObserver.observe(el);
+        });
+    }
+
     // ── Keyboard: ESC menutup modal tantangan ─────────────────
-    document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape') return;
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
         const modal = document.getElementById('challenge-modal');
         if (modal && !modal.classList.contains('hidden')) {
             modal.classList.add('hidden');
@@ -143,25 +153,23 @@
     // ── Focus trap di dalam modal tantangan ───────────────────
     const challengeModal = document.getElementById('challenge-modal');
     if (challengeModal) {
-        challengeModal.addEventListener('keydown', (e) => {
-            if (e.key !== 'Tab') return;
+        challengeModal.addEventListener('keydown', (event) => {
+            if (event.key !== 'Tab') return;
 
             const focusable = challengeModal.querySelectorAll(
                 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
             );
             const first = focusable[0];
-            const last  = focusable[focusable.length - 1];
+            const last = focusable[focusable.length - 1];
 
-            if (e.shiftKey) {
+            if (event.shiftKey) {
                 if (document.activeElement === first) {
-                    e.preventDefault();
+                    event.preventDefault();
                     last.focus();
                 }
-            } else {
-                if (document.activeElement === last) {
-                    e.preventDefault();
-                    first.focus();
-                }
+            } else if (document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
             }
         });
     }

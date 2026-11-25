@@ -977,7 +977,7 @@
                                     Rp <span id="val-rp">433.500</span>
                                 </span>
                             </div>
-                            <input type="range" id="slider-rp" min="75000" max="2500000" step="25000" value="433500" class="w-full">
+                            <input type="range" id="slider-rp" min="72250" max="2167500" step="14450" value="433500" class="w-full">
                             <p class="text-xs text-slate-400">
                                 *Asumsi tarif dasar listrik non-subsidi rata-rata Rp 1.445 / kWh
                             </p>
@@ -1352,7 +1352,7 @@
 
                 <!-- Item 1 -->
                 <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-sdg12 cursor-pointer transition-all shadow-sm">
-                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
+                    <input type="checkbox" data-pts="15" data-pledge="ac_24" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
                     <div class="flex-1">
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-sdg12-dark bg-sdg12-50 px-2 py-0.5 rounded-md">
@@ -1371,7 +1371,7 @@
 
                 <!-- Item 2 -->
                 <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-sdg12 cursor-pointer transition-all shadow-sm">
-                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
+                    <input type="checkbox" data-pts="15" data-pledge="unplug_standby" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
                     <div class="flex-1">
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-sdg12-dark bg-sdg12-50 px-2 py-0.5 rounded-md">
@@ -1390,7 +1390,7 @@
 
                 <!-- Item 3 -->
                 <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-forest cursor-pointer transition-all shadow-sm">
-                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-forest rounded cursor-pointer">
+                    <input type="checkbox" data-pts="15" data-pledge="natural_light" class="pledge-chk mt-1 w-5 h-5 accent-forest rounded cursor-pointer">
                     <div class="flex-1">
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-forest bg-forest-50 px-2 py-0.5 rounded-md">
@@ -1409,7 +1409,7 @@
 
                 <!-- Item 4 -->
                 <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-forest cursor-pointer transition-all shadow-sm">
-                    <input type="checkbox" data-pts="20" class="pledge-chk mt-1 w-5 h-5 accent-forest rounded cursor-pointer">
+                    <input type="checkbox" data-pts="20" data-pledge="public_transport" class="pledge-chk mt-1 w-5 h-5 accent-forest rounded cursor-pointer">
                     <div class="flex-1">
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-forest bg-forest-50 px-2 py-0.5 rounded-md">
@@ -1428,7 +1428,7 @@
 
                 <!-- Item 5 -->
                 <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-sdg12 cursor-pointer transition-all shadow-sm">
-                    <input type="checkbox" data-pts="15" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
+                    <input type="checkbox" data-pts="15" data-pledge="full_load_laundry" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
                     <div class="flex-1">
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-sdg12-dark bg-sdg12-50 px-2 py-0.5 rounded-md">
@@ -1447,7 +1447,7 @@
 
                 <!-- Item 6 -->
                 <label class="pledge-card flex items-start gap-3.5 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200 hover:border-sdg12 cursor-pointer transition-all shadow-sm">
-                    <input type="checkbox" data-pts="20" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
+                    <input type="checkbox" data-pts="20" data-pledge="skem_appliance" class="pledge-chk mt-1 w-5 h-5 accent-sdg12 rounded cursor-pointer">
                     <div class="flex-1">
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-sdg12-dark bg-sdg12-50 px-2 py-0.5 rounded-md">
@@ -1626,17 +1626,19 @@
 
     <!-- ============================================================
          SCRIPTS — Urutan loading penting!
-         1. toast.js      harus pertama (dipakai modul lain)
-         2. ticker.js
-         3. nav.js
-         4. score.js
-         5. calculator.js
-         6. simulation.js  (bergantung pada Chart.js di CDN atas)
-         7. challenges.js
-         8. checklist.js
-         9. dashboard.js
-        10. main.js        init Lucide icons terakhir
+         1. api.js        harus pertama (client API + identitas rumah tangga)
+         2. toast.js      dipakai modul lain
+         3. ticker.js
+         4. nav.js
+         5. score.js
+         6. calculator.js
+         7. simulation.js  (bergantung pada Chart.js di CDN atas)
+         8. challenges.js
+         9. checklist.js
+        10. dashboard.js
+        11. main.js        init Lucide icons terakhir
          ============================================================ -->
+    <script src="./js/api.js"></script>
     <script src="./js/toast.js"></script>
     <script src="./js/ticker.js"></script>
     <script src="./js/nav.js"></script>

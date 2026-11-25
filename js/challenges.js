@@ -1,113 +1,50 @@
 /**
  * challenges.js
- * Papan tantangan komunitas energi.
+ * Papan tantangan komunitas energi, backed by /api/challenges.
  *
  * Fitur:
- *  - Render kartu tantangan secara dinamis
+ *  - Render kartu tantangan dari server
  *  - Filter per kategori (semua / listrik / transportasi / terbarukan)
- *  - Ambil tantangan → tambah poin & update ticker
+ *  - Ambil tantangan → server mencatat join & poin
  *  - Modal "Bagikan Tantangan Baru" dengan form
  */
 
 (function () {
     // ── State ──────────────────────────────────────────────────
     let currentFilter = 'all';
+    let householdId = null;
+    let challengeListings = [];
+    let formPending = false;
+    const pendingJoins = new Set();
 
-    let challengeListings = [
-        {
-            id:          1,
-            category:    'listrik',
-            title:       'Matikan AC Semalam',
-            description: 'Coba tidur tanpa AC semalam dengan membuka jendela dan menggunakan kipas angin. Hemat energi mulai dari malam ini.',
-            kwh:         1.2,
-            co2:         1.0,
-            location:    'Jabodetabek',
-            time:        'Malam ini',
-            joined:      false,
-        },
-        {
-            id:          2,
-            category:    'transportasi',
-            title:       'Gunakan Sepeda/Angkutan Umum 3 Hari',
-            description: 'Tantang diri Anda menggunakan sepeda atau angkutan umum selama 3 hari berturut-turut sebagai pengganti kendaraan pribadi berbahan bakar fosil.',
-            kwh:         0,
-            co2:         15.0,
-            location:    'Nasional',
-            time:        'Minggu ini',
-            joined:      false,
-        },
-        {
-            id:          3,
-            category:    'listrik',
-            title:       'Audit Lampu Rumah (Ganti ke LED)',
-            description: 'Hitung berapa lampu non-LED yang masih ada di rumah Anda dan ganti dengan LED hemat energi. Satu langkah nyata menuju SDG 12.8.',
-            kwh:         8.0,
-            co2:         6.8,
-            location:    'Semua Wilayah',
-            time:        'Bulan ini',
-            joined:      false,
-        },
-        {
-            id:          4,
-            category:    'terbarukan',
-            title:       'Pasang Panel Surya Komunitas RT/RW',
-            description: 'Inisiasi pengadaan panel surya bersama untuk dipasang di atap balai RT/RW atau fasilitas umum setempat.',
-            kwh:         180.0,
-            co2:         153.0,
-            location:    'Bandung',
-            time:        'Kuartal ini',
-            joined:      false,
-        },
-        {
-            id:          5,
-            category:    'listrik',
-            title:       'Cabut Semua Perangkat Standby Malam Ini',
-            description: 'Sebelum tidur, cabut semua colokan TV, set-top box, charger, dan microwave untuk menghilangkan 100% beban vampire power.',
-            kwh:         0.4,
-            co2:         0.3,
-            location:    'Nasional',
-            time:        'Malam ini',
-            joined:      false,
-        },
-        {
-            id:          6,
-            category:    'listrik',
-            title:       'Cuci Pakaian Full Load + Jemur Alami',
-            description: 'Kumpulkan cucian hingga penuh kapasitas mesin cuci lalu jemur di bawah sinar matahari — tidak menggunakan pengering listrik.',
-            kwh:         0.9,
-            co2:         0.8,
-            location:    'Semua Wilayah',
-            time:        'Hari ini',
-            joined:      false,
-        },
-    ];
+    const grid = document.getElementById('challenge-feed-grid');
 
     // ── Style per kategori ─────────────────────────────────────
     function getCategoryStyle(category) {
         const map = {
             listrik: {
-                badgeClass:   'bg-sdg12-50 text-sdg12-dark border-sdg12/25',
-                iconName:     'zap',
-                iconColor:    'text-sdg12',
-                label:        'Hemat Listrik · SDG 12.8',
-                borderHover:  'hover:border-sdg12',
-                btnClass:     'bg-sdg12 hover:bg-sdg12-dark text-white',
+                badgeClass: 'bg-sdg12-50 text-sdg12-dark border-sdg12/25',
+                iconName: 'zap',
+                iconColor: 'text-sdg12',
+                label: 'Hemat Listrik · SDG 12.8',
+                borderHover: 'hover:border-sdg12',
+                btnClass: 'bg-sdg12 hover:bg-sdg12-dark text-white',
             },
             transportasi: {
-                badgeClass:   'bg-forest-50 text-forest-dark border-forest/25',
-                iconName:     'bike',
-                iconColor:    'text-forest',
-                label:        'Transportasi Bersih · SDG 12.c',
-                borderHover:  'hover:border-forest',
-                btnClass:     'bg-forest hover:bg-forest-dark text-white',
+                badgeClass: 'bg-forest-50 text-forest-dark border-forest/25',
+                iconName: 'bike',
+                iconColor: 'text-forest',
+                label: 'Transportasi Bersih · SDG 12.c',
+                borderHover: 'hover:border-forest',
+                btnClass: 'bg-forest hover:bg-forest-dark text-white',
             },
             terbarukan: {
-                badgeClass:   'bg-amber-50 text-amber-700 border-amber-200',
-                iconName:     'sun',
-                iconColor:    'text-amber-500',
-                label:        'Energi Terbarukan · SDG 12.2',
-                borderHover:  'hover:border-amber-400',
-                btnClass:     'bg-amber-500 hover:bg-amber-600 text-white',
+                badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+                iconName: 'sun',
+                iconColor: 'text-amber-500',
+                label: 'Energi Terbarukan · SDG 12.2',
+                borderHover: 'hover:border-amber-400',
+                btnClass: 'bg-amber-500 hover:bg-amber-600 text-white',
             },
         };
         return map[category] || map.listrik;
@@ -115,25 +52,39 @@
 
     // ── Render kartu tantangan ─────────────────────────────────
     function renderChallenges() {
-        const grid = document.getElementById('challenge-feed-grid');
-
-        // Update badge count di navigasi & filter buttons
-        document.getElementById('count-all-chal').textContent    = challengeListings.length;
-        document.getElementById('count-listrik').textContent     = challengeListings.filter(c => c.category === 'listrik').length;
-        document.getElementById('count-transportasi').textContent = challengeListings.filter(c => c.category === 'transportasi').length;
-        document.getElementById('count-terbarukan').textContent  = challengeListings.filter(c => c.category === 'terbarukan').length;
-        document.getElementById('nav-komunitas-badge').textContent = challengeListings.filter(c => !c.joined).length;
+        const setCount = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+        setCount('count-all-chal', challengeListings.length);
+        setCount('count-listrik', challengeListings.filter((c) => c.category === 'listrik').length);
+        setCount('count-transportasi', challengeListings.filter((c) => c.category === 'transportasi').length);
+        setCount('count-terbarukan', challengeListings.filter((c) => c.category === 'terbarukan').length);
+        setCount('nav-komunitas-badge', challengeListings.filter((c) => !c.joined).length);
 
         const filtered = currentFilter === 'all'
             ? challengeListings
-            : challengeListings.filter(c => c.category === currentFilter);
+            : challengeListings.filter((c) => c.category === currentFilter);
 
-        grid.innerHTML = filtered.map(item => {
-            const s        = getCategoryStyle(item.category);
+        if (filtered.length === 0) {
+            grid.innerHTML = `
+                <p class="col-span-full rounded-3xl bg-white border border-dashed border-stone-300 p-8 text-center text-sm text-slate-500">
+                    Belum ada tantangan pada kategori ini. Bagikan tantangan pertama Anda.
+                </p>`;
+            return;
+        }
+
+        grid.innerHTML = filtered.map((item) => {
+            const s = getCategoryStyle(item.category);
             const kwhLabel = item.kwh > 0 ? `${item.kwh} kWh dihemat` : `${item.co2} kg CO₂e dicegah`;
-            const btnLabel = item.joined ? 'Sudah Diikuti ✓' : 'Ambil Tantangan (+20 Poin)';
-            const btnDisabled = item.joined ? 'disabled' : '';
-            const btnCls   = item.joined ? 'bg-stone-200 text-slate-500 cursor-default' : s.btnClass;
+            const btnLabel = item.joined
+                ? 'Sudah Diikuti ✓'
+                : item.pending
+                    ? 'Menyimpan…'
+                    : 'Ambil Tantangan (+20 Poin)';
+            const btnDisabled = item.joined || item.pending ? 'disabled' : '';
+            const btnCls = item.joined ? 'bg-stone-200 text-slate-500 cursor-default' : s.btnClass;
+            const co2Label = item.co2 > 0 ? item.co2 : (item.kwh * 0.85).toFixed(1);
 
             return `
                 <article class="animate-card rounded-3xl bg-white border border-stone-200/90 p-6 flex flex-col justify-between
@@ -149,28 +100,28 @@
                             </span>
                         </div>
 
-                        <h3 class="font-display font-bold text-lg text-slateDark leading-snug mb-2">${item.title}</h3>
-                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">${item.description}</p>
+                        <h3 class="font-display font-bold text-lg text-slateDark leading-snug mb-2">${escapeHtml(item.title)}</h3>
+                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">${escapeHtml(item.description)}</p>
                     </div>
 
                     <div class="space-y-4 pt-3 border-t border-stone-100">
                         <div class="space-y-1.5 text-xs text-slate-500">
                             <div class="flex items-center gap-2">
                                 <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
-                                <span>${item.location}</span>
+                                <span>${escapeHtml(item.location)}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
-                                <span>${item.time}</span>
+                                <span>${escapeHtml(item.time)}</span>
                             </div>
                         </div>
 
                         <div class="flex items-center justify-between gap-3 pt-1">
                             <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
-                                -${item.co2 > 0 ? item.co2 : (item.kwh * 0.85).toFixed(1)} kg CO₂e
+                                -${co2Label} kg CO₂e
                             </span>
                             <button type="button"
-                                    onclick="joinChallenge(${item.id})"
+                                    onclick="joinChallenge(${Number(item.id)})"
                                     ${btnDisabled}
                                     class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm ${btnCls}">
                                 <i data-lucide="${item.joined ? 'check' : 'hand-heart'}" class="w-4 h-4"></i>
@@ -186,35 +137,47 @@
     }
 
     // ── Aksi ambil tantangan (global agar bisa dipanggil dari onclick) ──
-    window.joinChallenge = function (id) {
-        const item = challengeListings.find(c => c.id === id);
-        if (!item || item.joined) return;
+    window.joinChallenge = async function (id) {
+        const item = challengeListings.find((c) => c.id === id);
+        if (!item || item.joined || pendingJoins.has(id)) return;
 
-        item.joined = true;
-
-        // Tambah poin & update ticker
-        window.userScore += 20;
-        window.ticker.kwh  = Math.round(window.ticker.kwh + item.kwh);
-        window.ticker.co2  = Math.round(window.ticker.co2 + (item.co2 > 0 ? item.co2 : item.kwh * 0.85));
-
-        // Update semua tampilan
-        document.getElementById('ticker-kwh').textContent = window.ticker.kwh.toLocaleString('id-ID');
-        document.getElementById('ticker-co2').textContent = window.ticker.co2.toLocaleString('id-ID');
-        window.updateGlobalScore();
+        pendingJoins.add(id);
+        item.pending = true;
         renderChallenges();
-        window.showToast(`Tantangan "${item.title}" diambil! +20 Poin SDG 12.`, 'challenge');
+
+        try {
+            householdId ||= await window.getHouseholdId();
+            const result = await window.api(`/api/challenges/${id}/join`, {
+                method: 'POST',
+                body: JSON.stringify({ household_id: householdId }),
+            });
+
+            item.joined = true;
+            renderChallenges();
+            window.showToast(
+                result.awarded
+                    ? `Tantangan "${item.title}" diambil! +20 Poin SDG 12.`
+                    : `Tantangan "${item.title}" sudah tercatat sebelumnya.`,
+                'challenge'
+            );
+            await Promise.all([window.refreshScore(), window.refreshImpact()]);
+        } catch (error) {
+            window.showToast(`Gagal mengambil tantangan: ${error.message}`, 'error');
+        } finally {
+            pendingJoins.delete(id);
+            item.pending = false;
+            renderChallenges();
+        }
     };
 
     // ── Filter buttons ─────────────────────────────────────────
-    document.querySelectorAll('.chal-filter-btn').forEach(btn => {
+    document.querySelectorAll('.chal-filter-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
             currentFilter = btn.dataset.filter;
 
-            // Reset semua tombol
-            document.querySelectorAll('.chal-filter-btn').forEach(b => {
+            document.querySelectorAll('.chal-filter-btn').forEach((b) => {
                 b.className = 'chal-filter-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slateDark transition-all flex items-center gap-1.5';
             });
-            // Aktifkan tombol yang dipilih
             btn.className = 'chal-filter-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slateDark text-white shadow-sm transition-all flex items-center gap-1.5';
 
             renderChallenges();
@@ -222,14 +185,14 @@
     });
 
     // ── Modal "Bagikan Tantangan" ───────────────────────────────
-    const modal               = document.getElementById('challenge-modal');
-    const openBtn             = document.getElementById('open-challenge-modal-btn');
-    const closeBtn            = document.getElementById('close-challenge-modal-btn');
-    const cancelBtn           = document.getElementById('cancel-challenge-btn');
-    const backdrop            = document.getElementById('challenge-modal-backdrop');
-    const form                = document.getElementById('post-challenge-form');
+    const modal = document.getElementById('challenge-modal');
+    const openBtn = document.getElementById('open-challenge-modal-btn');
+    const closeBtn = document.getElementById('close-challenge-modal-btn');
+    const cancelBtn = document.getElementById('cancel-challenge-btn');
+    const backdrop = document.getElementById('challenge-modal-backdrop');
+    const form = document.getElementById('post-challenge-form');
 
-    const openModal  = () => modal.classList.remove('hidden');
+    const openModal = () => modal.classList.remove('hidden');
     const closeModal = () => modal.classList.add('hidden');
 
     openBtn.addEventListener('click', openModal);
@@ -238,41 +201,54 @@
     backdrop.addEventListener('click', closeModal);
 
     // Submit tantangan baru
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (formPending) return;
 
-        const title    = document.getElementById('chal-title').value.trim();
-        const category = document.getElementById('chal-category').value;
-        const kwh      = parseFloat(document.getElementById('chal-kwh').value) || 1.0;
-        const location = document.getElementById('chal-location').value.trim();
-        const desc     = document.getElementById('chal-desc').value.trim();
-        const co2Est   = parseFloat((kwh * 0.85).toFixed(1));
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const payload = {
+            household_id: householdId,
+            title: document.getElementById('chal-title').value.trim(),
+            category: document.getElementById('chal-category').value,
+            kwh: parseFloat(document.getElementById('chal-kwh').value) || 1.0,
+            location: document.getElementById('chal-location').value.trim(),
+            description: document.getElementById('chal-desc').value.trim(),
+        };
 
-        challengeListings.unshift({
-            id:          Date.now(),
-            category,
-            title,
-            description: desc,
-            kwh,
-            co2:         co2Est,
-            location,
-            time:        'Baru saja',
-            joined:      false,
-        });
+        formPending = true;
+        if (submitBtn) submitBtn.disabled = true;
+        try {
+            householdId ||= await window.getHouseholdId();
+            const created = await window.api('/api/challenges', {
+                method: 'POST',
+                body: JSON.stringify({ ...payload, household_id: householdId }),
+            });
 
-        window.userScore += 30;
-        window.ticker.kwh  = Math.round(window.ticker.kwh + kwh);
-        window.ticker.co2  = Math.round(window.ticker.co2 + co2Est);
-
-        document.getElementById('ticker-kwh').textContent = window.ticker.kwh.toLocaleString('id-ID');
-        document.getElementById('ticker-co2').textContent = window.ticker.co2.toLocaleString('id-ID');
-        window.updateGlobalScore();
-        renderChallenges();
-        closeModal();
-        form.reset();
-        window.showToast(`Tantangan "${title}" berhasil dipublikasikan! +30 Poin.`, 'success');
+            challengeListings.unshift(created);
+            renderChallenges();
+            closeModal();
+            form.reset();
+            window.showToast(`Tantangan "${created.title}" berhasil dipublikasikan! +30 Poin.`, 'success');
+            await window.refreshScore();
+        } catch (error) {
+            window.showToast(`Gagal mempublikasikan tantangan: ${error.message}`, 'error');
+        } finally {
+            formPending = false;
+            if (submitBtn) submitBtn.disabled = false;
+        }
     });
 
-    // Render awal
-    renderChallenges();
+    // ── Initial load ───────────────────────────────────────────
+    (async function load() {
+        try {
+            householdId = await window.getHouseholdId();
+            challengeListings = await window.api(`/api/challenges?household_id=${householdId}`);
+            renderChallenges();
+        } catch (error) {
+            grid.innerHTML = `
+                <p class="col-span-full rounded-3xl bg-rose-50 border border-rose-200 p-8 text-center text-sm text-rose-700">
+                    Tantangan tidak dapat dimuat (${escapeHtml(error.message)}). Pastikan server backend berjalan lalu muat ulang.
+                </p>`;
+        }
+    })();
 })();

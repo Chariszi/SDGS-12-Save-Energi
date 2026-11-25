@@ -10,15 +10,15 @@ window.showToast = function (message, type = 'success') {
 
     let bgClass, iconName;
 
-    if (type === 'challenge') {
-        bgClass   = 'bg-sdg12 text-white';
-        iconName  = 'zap';
-    } else if (type === 'energy') {
-        bgClass   = 'bg-sdg12 text-white';
-        iconName  = 'zap';
+    if (type === 'challenge' || type === 'energy') {
+        bgClass = 'bg-sdg12 text-white';
+        iconName = 'zap';
+    } else if (type === 'error') {
+        bgClass = 'bg-rose-600 text-white';
+        iconName = 'alert-triangle';
     } else {
-        bgClass   = 'bg-forest text-white';
-        iconName  = 'check-circle-2';
+        bgClass = 'bg-forest text-white';
+        iconName = 'check-circle-2';
     }
 
     toast.className = [
@@ -29,18 +29,21 @@ window.showToast = function (message, type = 'success') {
         'pointer-events-auto animate-card max-w-sm',
     ].join(' ');
 
-    toast.innerHTML = `
-        <i data-lucide="${iconName}" class="w-4 h-4 shrink-0"></i>
-        <span>${message}</span>
-    `;
+    const icon = document.createElement('i');
+    icon.setAttribute('data-lucide', iconName);
+    icon.className = 'w-4 h-4 shrink-0';
 
+    const text = document.createElement('span');
+    text.textContent = message;
+
+    toast.append(icon, text);
     container.appendChild(toast);
     lucide.createIcons();
 
     // Auto-dismiss setelah 3,5 detik
     setTimeout(() => {
-        toast.style.opacity    = '0';
-        toast.style.transform  = 'translateY(8px)';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
         toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
         setTimeout(() => toast.remove(), 300);
     }, 3500);
