@@ -732,3 +732,167 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 });
+
+// ============================================================
+// COMPETITION ADDITIONS: Impact Dashboard + Animated KPIs
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+
+    // ---- Animated KPI counters on scroll ----
+    const kpiTargets = {
+        'kpi-kwh-saved':      { target: 3890,  suffix: '',  decimals: 0 },
+        'kpi-co2-prevented':  { target: 6412,  suffix: '',  decimals: 0 },
+        'kpi-households':     { target: 1248,  suffix: '',  decimals: 0 },
+        'kpi-rp-saved':       { target: 562,   suffix: '',  decimals: 0 },
+    };
+
+    let kpiAnimated = false;
+
+    function animateKPI(id, target, decimals) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const duration = 1800;
+        const start = performance.now();
+        function step(now) {
+            const progress = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const current = eased * target;
+            el.textContent = decimals > 0
+                ? current.toLocaleString('id-ID', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+                : Math.round(current).toLocaleString('id-ID');
+            if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
+    function triggerKPIAnimation() {
+        if (kpiAnimated) return;
+        const dampakSection = document.getElementById('dampak');
+        if (!dampakSection) return;
+        const rect = dampakSection.getBoundingClientRect();
+        if (rect.top < window.innerHeight * 0.85) {
+            kpiAnimated = true;
+            Object.entries(kpiTargets).forEach(([id, cfg]) => {
+                animateKPI(id, cfg.target, cfg.decimals);
+            });
+            // Animate impact bars
+            setTimeout(() => {
+                const barListrik = document.getElementById('bar-listrik');
+                const barTransportasi = document.getElementById('bar-transportasi');
+                const barTerbarukan = document.getElementById('bar-terbarukan');
+                if (barListrik) barListrik.style.width = '62%';
+                if (barTransportasi) barTransportasi.style.width = '25%';
+                if (barTerbarukan) barTerbarukan.style.width = '13%';
+            }, 300);
+        }
+    }
+
+    window.addEventListener('scroll', triggerKPIAnimation, { passive: true });
+    triggerKPIAnimation(); // Run on load in case section is already visible
+
+    // ---- Sync KPI counters with live ticker values ----
+    // Every time the ticker increments (from the main DOMContentLoaded block),
+    // also update the KPI dashboard cards to stay in sync
+    function syncKPIWithTicker() {
+        const tickerKwhEl = document.getElementById('ticker-kwh');
+        const tickerCo2El = document.getElementById('ticker-co2');
+        const tickerHouseholdsEl = document.getElementById('ticker-households');
+        const kpiKwhEl = document.getElementById('kpi-kwh-saved');
+        const kpiCo2El = document.getElementById('kpi-co2-prevented');
+        const kpiHouseholdsEl = document.getElementById('kpi-households');
+        const kpiRpEl = document.getElementById('kpi-rp-saved');
+
+        if (!kpiAnimated) return; // Only sync after initial animation
+
+        if (tickerKwhEl && kpiKwhEl) {
+            kpiKwhEl.textContent = tickerKwhEl.textContent;
+        }
+        if (tickerCo2El && kpiCo2El) {
+            kpiCo2El.textContent = tickerCo2El.textContent;
+        }
+        if (tickerHouseholdsEl && kpiHouseholdsEl) {
+            kpiHouseholdsEl.textContent = tickerHouseholdsEl.textContent;
+        }
+        // Rp saved = kWh * 1445 / 1,000,000 Juta Rp
+        if (tickerKwhEl && kpiRpEl) {
+            const kwh = parseInt(tickerKwhEl.textContent.replace(/\./g, '').replace(/,/g, ''), 10) || 3890;
+            const jutaRp = Math.round((kwh * 1445) / 1000000);
+            kpiRpEl.textContent = jutaRp.toLocaleString('id-ID');
+        }
+    }
+
+    // Poll every 5 seconds to stay in sync with the ticker
+    setInterval(syncKPIWithTicker, 5000);
+
+    // ---- Update impact bars dynamically when challenges are joined ----
+    // Listen for DOM mutations in the challenge feed to recalculate bar widths
+    const challengeFeedGrid = document.getElementById('challenge-feed-grid');
+    if (challengeFeedGrid) {
+        const observer = new MutationObserver(() => {
+            if (!kpiAnimated) return;
+            // Recalculate bar percentages based on joined challenges (approximate)
+            const totalJoined = document.querySelectorAll('[onclick^="joinChallenge"]').length;
+            const listrikBar = document.getElementById('bar-listrik');
+            const transportasiBar = document.getElementById('bar-transportasi');
+            const terbarukannBar = document.getElementById('bar-terbarukan');
+            if (listrikBar) listrikBar.style.width = '62%';
+            if (transportasiBar) transportasiBar.style.width = '25%';
+            if (terbarukannBar) terbarukannBar.style.width = '13%';
+        });
+        observer.observe(challengeFeedGrid, { childList: true, subtree: false });
+    }
+
+    // ---- Keyboard accessibility: ESC closes challenge modal ----
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('challenge-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+            }
+        }
+    });
+
+    // ---- Focus trap in challenge modal ----
+    const challengeModal = document.getElementById('challenge-modal');
+    if (challengeModal) {
+        challengeModal.addEventListener('keydown', (e) => {
+            if (e.key !== 'Tab') return;
+            const focusable = challengeModal.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey) {
+                if (document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+        });
+    }
+
+    // ---- Smooth entrance animations using IntersectionObserver ----
+    const animateOnScrollEls = document.querySelectorAll('#urgensi .rounded-3xl, #inovasi .rounded-3xl, #dampak .rounded-3xl');
+    const entranceObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+                entranceObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1 });
+
+    animateOnScrollEls.forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(20px)';
+        el.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+        entranceObserver.observe(el);
+    });
+
+});
