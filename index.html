@@ -7,12 +7,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SDG 12 Energi — Konsumsi &amp; Produksi Energi Bertanggung Jawab</title>
+    <title>SaveEnergi — Konsumsi &amp; Produksi Energi Bertanggung Jawab (SDG 12)</title>
 
-    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+    <!-- Google Fonts: Space Grotesk (Display) & Inter (Body) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -30,7 +30,7 @@
                 extend: {
                     fontFamily: {
                         sans:    ['Inter', 'sans-serif'],
-                        display: ['Plus Jakarta Sans', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
                     },
                     colors: {
                         cream: '#FAF9F6',
@@ -87,12 +87,35 @@
             background-color: #996D1F;
         }
 
-        /* Animasi fade-in-up untuk hero */
+        /* Animasi masuk hero (staggered) */
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(16px); }
+            from { opacity: 0; transform: translateY(20px); }
             to   { opacity: 1; transform: translateY(0); }
         }
-        .fade-in-up { animation: fadeInUp 0.65s ease-out forwards; }
+        @keyframes fadeInRight {
+            from { opacity: 0; transform: translateX(24px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        .fade-in-up {
+            opacity: 0;
+            animation: fadeInUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .fade-in-right {
+            opacity: 0;
+            animation: fadeInRight 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .anim-delay-100 { animation-delay: 0.1s; }
+        .anim-delay-200 { animation-delay: 0.2s; }
+        .anim-delay-300 { animation-delay: 0.3s; }
+        .anim-delay-400 { animation-delay: 0.4s; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .fade-in-up, .fade-in-right {
+                opacity: 1;
+                animation: none;
+                transform: none;
+            }
+        }
 
         /* Animasi slide-up untuk kartu */
         @keyframes slideUpFade {
@@ -167,61 +190,64 @@
     <!-- ============================================================
          SECTION 2 — STICKY NAVIGATION HEADER
          ============================================================ -->
-    <header class="sticky top-0 z-40 bg-cream/90 backdrop-blur-md border-b border-stone-200/80 shadow-sm">
+    <header id="site-header" class="sticky top-0 z-40 bg-cream/90 backdrop-blur-md border-b border-stone-200/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16 md:h-20">
+            <div class="flex justify-between items-center h-16 md:h-[72px] gap-4">
 
                 <!-- Brand Logo -->
-                <a href="#" class="flex items-center gap-3 group">
-                    <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-sdg12 to-forest
-                                flex flex-col items-center justify-center text-white shadow-md
-                                group-hover:scale-105 transition-transform">
-                        <span class="font-display font-extrabold text-sm leading-none">12</span>
-                        <i data-lucide="infinity" class="w-4 h-4 mt-0.5"></i>
+                <a href="#" class="flex items-center gap-3 shrink-0 group">
+                    <div class="w-10 h-10 rounded-xl bg-slateDark text-white flex items-center justify-center
+                                shadow-sm group-hover:bg-slate-800 transition-colors">
+                        <i data-lucide="zap" class="w-5 h-5"></i>
                     </div>
-                    <div>
-                        <span class="font-display font-extrabold text-slateDark text-lg md:text-xl tracking-tight block leading-tight">
-                            SDG 12 Energi
+                    <div class="leading-tight">
+                        <span class="font-display font-bold text-slateDark text-lg tracking-tight block">
+                            SaveEnergi
                         </span>
-                        <span class="text-xs text-slate-500 hidden sm:block">Konsumsi &amp; Produksi Bertanggung Jawab</span>
+                        <span class="text-[11px] text-slate-500 hidden sm:block">SDG 12 • Konsumsi Energi Bijak</span>
                     </div>
                 </a>
 
                 <!-- Desktop Navigation -->
-                <nav aria-label="Navigasi utama" class="hidden lg:flex items-center space-x-6 text-sm font-medium text-slate-600">
-                    <a href="#edukasi"   class="hover:text-sdg12 transition-colors">Mengapa SDG 12?</a>
-                    <a href="#urgensi"   class="hover:text-rose-500 transition-colors">Urgensi</a>
-                    <a href="#inovasi"   class="hover:text-sdg12 transition-colors">Inovasi</a>
-                    <a href="#kalkulator" class="hover:text-sdg12 transition-colors">Kalkulator</a>
-                    <a href="#simulasi"  class="hover:text-sdg12 transition-colors">Simulasi</a>
-                    <a href="#komunitas" class="hover:text-forest transition-colors flex items-center gap-1">
+                <nav aria-label="Navigasi utama" class="hidden lg:flex items-center gap-1 text-sm font-medium text-slate-600">
+                    <a href="#edukasi"    class="px-3 py-1.5 rounded-lg hover:text-slateDark hover:bg-stone-200/50 transition-colors whitespace-nowrap">Edukasi</a>
+                    <a href="#urgensi"    class="px-3 py-1.5 rounded-lg hover:text-slateDark hover:bg-stone-200/50 transition-colors whitespace-nowrap">Urgensi</a>
+                    <a href="#inovasi"    class="px-3 py-1.5 rounded-lg hover:text-slateDark hover:bg-stone-200/50 transition-colors whitespace-nowrap">Inovasi</a>
+                    <a href="#kalkulator" class="px-3 py-1.5 rounded-lg hover:text-slateDark hover:bg-stone-200/50 transition-colors whitespace-nowrap">Kalkulator</a>
+                    <a href="#simulasi"   class="px-3 py-1.5 rounded-lg hover:text-slateDark hover:bg-stone-200/50 transition-colors whitespace-nowrap">Simulasi</a>
+                    <a href="#komunitas"  class="px-3 py-1.5 rounded-lg hover:text-slateDark hover:bg-stone-200/50 transition-colors whitespace-nowrap flex items-center gap-1.5">
                         <span>Komunitas</span>
                         <span id="nav-komunitas-badge"
-                              class="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-forest/15 text-forest">6</span>
+                              class="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-stone-200 text-slate-700">6</span>
                     </a>
-                    <a href="#aksi" class="hover:text-sdg12 transition-colors">Aksi</a>
+                    <a href="#aksi" class="px-3 py-1.5 rounded-lg hover:text-slateDark hover:bg-stone-200/50 transition-colors whitespace-nowrap">Aksi</a>
                 </nav>
 
                 <!-- Score Pill + CTA + Mobile Toggle -->
-                <div class="flex items-center gap-2.5">
-                    <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-stone-200 shadow-sm"
+                <div class="flex items-center gap-2.5 shrink-0">
+                    <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-stone-200/90 whitespace-nowrap"
                          title="Skor SDG 12 Pribadi Anda">
-                        <i data-lucide="award" class="w-4 h-4 text-sdg12"></i>
-                        <span class="text-xs text-slate-500">Skor Saya:</span>
-                        <span id="user-score-display" class="font-display font-extrabold text-sm text-slateDark">0 Poin</span>
+                        <i data-lucide="award" class="w-4 h-4 text-slate-500"></i>
+                        <span class="text-xs text-slate-500">Skor:</span>
+                        <span id="user-score-display" class="font-display font-bold text-sm text-slateDark">0 Poin</span>
                     </div>
 
                     <a href="#kalkulator"
-                       class="hidden md:inline-flex items-center gap-1.5 bg-sdg12 hover:bg-sdg12-dark
-                              text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-all">
+                       class="hidden md:inline-flex items-center gap-1.5 bg-slateDark hover:bg-slate-800
+                              text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-sm transition-colors whitespace-nowrap">
                         <i data-lucide="calculator" class="w-4 h-4"></i>
-                        <span>Hitung Jejak Energi</span>
+                        <span>Hitung Energi</span>
                     </a>
 
                     <button id="mobile-menu-btn"
+                            type="button"
                             aria-label="Buka Menu"
-                            class="lg:hidden p-2.5 rounded-xl text-slate-600 hover:bg-stone-200/60 focus:outline-none">
-                        <i data-lucide="menu" class="w-6 h-6"></i>
+                            aria-expanded="false"
+                            aria-controls="mobile-menu"
+                            class="lg:hidden p-2 rounded-xl text-slate-700 bg-white border border-stone-200
+                                   hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-colors">
+                        <i data-lucide="menu" id="mobile-menu-icon-open" class="w-5 h-5"></i>
+                        <i data-lucide="x" id="mobile-menu-icon-close" class="w-5 h-5 hidden"></i>
                     </button>
                 </div>
 
@@ -229,19 +255,78 @@
         </div>
 
         <!-- Mobile Dropdown Menu -->
-        <div id="mobile-menu" class="hidden lg:hidden bg-white border-b border-stone-200 px-4 pt-3 pb-5 space-y-2 shadow-lg">
-            <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-cream border border-stone-200 mb-2">
-                <span class="text-xs font-medium text-slate-600">Skor SDG 12 Saya</span>
-                <span id="mobile-user-score" class="font-display font-extrabold text-sm text-sdg12-dark">0 Poin</span>
+        <div id="mobile-menu"
+             class="hidden lg:hidden bg-white/95 backdrop-blur-md border-b border-stone-200 px-4 pt-3 pb-5 shadow-lg">
+            <div class="max-w-7xl mx-auto space-y-3">
+                <!-- Score Summary Card -->
+                <div class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-cream border border-stone-200">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="award" class="w-4 h-4 text-slate-600"></i>
+                        <span class="text-xs font-semibold text-slate-600">Skor SDG 12 Saya</span>
+                    </div>
+                    <span id="mobile-user-score" class="font-display font-bold text-sm text-slateDark">0 Poin</span>
+                </div>
+
+                <!-- Navigation Links Grid -->
+                <nav aria-label="Navigasi mobile" class="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    <a href="#edukasi"
+                       class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700
+                              hover:bg-stone-100 hover:text-slateDark transition-colors">
+                        <i data-lucide="book-open" class="w-4 h-4 text-slate-500 shrink-0"></i>
+                        <span>Mengapa Energi &amp; SDG 12?</span>
+                    </a>
+                    <a href="#urgensi"
+                       class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700
+                              hover:bg-stone-100 hover:text-slateDark transition-colors">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-slate-500 shrink-0"></i>
+                        <span>Urgensi Masalah</span>
+                    </a>
+                    <a href="#inovasi"
+                       class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700
+                              hover:bg-stone-100 hover:text-slateDark transition-colors">
+                        <i data-lucide="refresh-cw" class="w-4 h-4 text-slate-500 shrink-0"></i>
+                        <span>Inovasi &amp; Metodologi</span>
+                    </a>
+                    <a href="#dampak"
+                       class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700
+                              hover:bg-stone-100 hover:text-slateDark transition-colors">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4 text-slate-500 shrink-0"></i>
+                        <span>Dashboard Dampak</span>
+                    </a>
+                    <a href="#kalkulator"
+                       class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700
+                              hover:bg-stone-100 hover:text-slateDark transition-colors">
+                        <i data-lucide="calculator" class="w-4 h-4 text-slate-500 shrink-0"></i>
+                        <span>Kalkulator Jejak Energi</span>
+                    </a>
+                    <a href="#simulasi"
+                       class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700
+                              hover:bg-stone-100 hover:text-slateDark transition-colors">
+                        <i data-lucide="sliders" class="w-4 h-4 text-slate-500 shrink-0"></i>
+                        <span>Simulasi Perbandingan Alat</span>
+                    </a>
+                    <a href="#komunitas"
+                       class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700
+                              hover:bg-stone-100 hover:text-slateDark transition-colors">
+                        <i data-lucide="users" class="w-4 h-4 text-slate-500 shrink-0"></i>
+                        <span>Tantangan Komunitas</span>
+                    </a>
+                    <a href="#aksi"
+                       class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700
+                              hover:bg-stone-100 hover:text-slateDark transition-colors">
+                        <i data-lucide="check-square" class="w-4 h-4 text-slate-500 shrink-0"></i>
+                        <span>Checklist Aksi Harian</span>
+                    </a>
+                </nav>
+
+                <!-- Mobile Primary CTA -->
+                <a href="#kalkulator"
+                   class="flex items-center justify-center gap-2 w-full bg-slateDark hover:bg-slate-800
+                          text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-sm transition-colors">
+                    <i data-lucide="zap" class="w-4 h-4"></i>
+                    <span>Hitung Energi Sekarang</span>
+                </a>
             </div>
-            <a href="#edukasi"    class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-sdg12-50 hover:text-sdg12">Mengapa Energi &amp; SDG 12?</a>
-            <a href="#urgensi"    class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-rose-50 hover:text-rose-600">Urgensi Masalah (Data &amp; Bukti)</a>
-            <a href="#inovasi"    class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-sdg12-50 hover:text-sdg12">Inovasi &amp; Metodologi</a>
-            <a href="#dampak"     class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-forest-50 hover:text-forest">Dashboard Dampak</a>
-            <a href="#kalkulator" class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-sdg12-50 hover:text-sdg12">Kalkulator Jejak Energi</a>
-            <a href="#simulasi"   class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-sdg12-50 hover:text-sdg12">Simulasi Perbandingan Alat</a>
-            <a href="#komunitas"  class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-forest-50 hover:text-forest">Tantangan Energi Komunitas</a>
-            <a href="#aksi"       class="block px-3 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:bg-sdg12-50 hover:text-sdg12">Checklist Aksi Harian</a>
         </div>
     </header>
 
@@ -260,83 +345,100 @@
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
 
                 <!-- Left: Copy -->
-                <div class="lg:col-span-7 space-y-6 fade-in-up">
-                    <div class="inline-flex flex-wrap items-center gap-2 px-3.5 py-1.5 rounded-full
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="fade-in-up inline-flex flex-wrap items-center gap-2 px-3.5 py-1.5 rounded-full
                                 bg-white border border-stone-200 shadow-sm text-xs font-semibold text-slateDark">
-                        <span class="px-2 py-0.5 rounded-full bg-sdg12 text-white">Target 12.c &amp; 12.2</span>
-                        <span>Efisiensi Energi Bersih</span>
+                        <span class="px-2.5 py-0.5 rounded-full bg-sdg12 text-white">Target 12.2 &amp; 12.c</span>
+                        <span>Efisiensi Energi Berkelanjutan</span>
                         <span class="text-slate-300">•</span>
-                        <span class="w-2 h-2 rounded-full bg-sdg12 animate-pulse inline-block"></span>
-                        <span>Kampanye Nasional SDG 12</span>
+                        <span class="w-2 h-2 rounded-full bg-forest-light animate-pulse inline-block"></span>
+                        <span class="text-forest-dark">Aksi Nyata SaveEnergi</span>
                     </div>
 
-                    <h1 class="font-display font-extrabold text-3xl sm:text-5xl lg:text-[3.25rem]
-                               text-slateDark tracking-tight leading-[1.13]">
-                        Energi Paling Bersih Adalah Energi yang
-                        <span class="text-sdg12">Tidak Terbuang Sia-Sia.</span>
+                    <h1 class="fade-in-up anim-delay-100 font-display font-bold text-3xl sm:text-5xl lg:text-[3.35rem]
+                               text-slateDark tracking-tight leading-[1.12]">
+                        Ubah Cara Kita Memakai Energi,
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-sdg12 to-forest">
+                            Mulai dari Kebiasaan Harian.
+                        </span>
                     </h1>
 
-                    <p class="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
-                        Setiap kilowatt listrik yang kita konsumsi meninggalkan jejak emisi karbon. Melalui
-                        <strong>SDG 12</strong>, mari ubah pola konsumsi energi dari boros menjadi bijak,
-                        efisien, dan berkelanjutan untuk generasi mendatang.
+                    <p class="fade-in-up anim-delay-200 text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
+                        Energi paling bersih adalah energi yang tidak terbuang sia-sia. Lewat platform
+                        <strong>SaveEnergi</strong> berbasis <strong>SDG 12</strong>, ukur jejak karbon listrikmu,
+                        bandingkan efisiensi alat, dan bergabung dalam aksi hemat energi bersama komunitas.
                     </p>
 
-                    <div class="flex flex-col sm:flex-row gap-3.5 pt-2">
+                    <div class="fade-in-up anim-delay-300 flex flex-col sm:flex-row flex-wrap gap-3.5 pt-2">
                         <a href="#kalkulator"
-                           class="inline-flex justify-center items-center gap-2.5 bg-sdg12 hover:bg-sdg12-dark
+                           class="group inline-flex justify-center items-center gap-2.5 bg-sdg12 hover:bg-sdg12-dark
                                   text-white font-semibold px-6 py-4 rounded-2xl shadow-lg shadow-sdg12/20
                                   transition-all transform hover:-translate-y-0.5">
                             <i data-lucide="zap" class="w-5 h-5"></i>
-                            <span>Cek Skor Efisiensi Energimu</span>
+                            <span>Hitung Jejak Energimu</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4 transition-transform group-hover:translate-x-1"></i>
                         </a>
                         <a href="#komunitas"
                            class="inline-flex justify-center items-center gap-2.5 bg-white hover:bg-forest-50
-                                  text-slateDark border-2 border-forest/30 font-semibold px-6 py-4 rounded-2xl transition-all">
+                                  text-slateDark border-2 border-forest/30 font-semibold px-6 py-4 rounded-2xl
+                                  transition-all hover:border-forest/60">
                             <i data-lucide="users" class="w-5 h-5 text-forest"></i>
-                            <span>Ikuti Tantangan Komunitas</span>
+                            <span>Tantangan Komunitas</span>
+                        </a>
+                        <a href="#simulasi"
+                           class="inline-flex justify-center items-center gap-2 bg-cream hover:bg-stone-100
+                                  text-slate-700 border border-stone-200 font-semibold px-5 py-4 rounded-2xl transition-all">
+                            <i data-lucide="sliders" class="w-4 h-4 text-sdg12"></i>
+                            <span>Simulasi Alat</span>
                         </a>
                     </div>
                 </div>
 
                 <!-- Right: Stats Card -->
-                <div class="lg:col-span-5">
-                    <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-stone-200/80 space-y-5">
+                <div class="lg:col-span-5 fade-in-right anim-delay-200">
+                    <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-stone-200/80 space-y-4">
                         <div class="flex items-center justify-between border-b border-stone-100 pb-4">
                             <div>
-                                <span class="text-xs font-bold uppercase tracking-wider text-sdg12">
+                                <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-sdg12">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-sdg12"></span>
                                     Fakta Kunci SDG 12 Energi
                                 </span>
                                 <h2 class="font-display font-bold text-lg text-slateDark mt-0.5">
                                     Mengapa Perlu Bertindak Sekarang?
                                 </h2>
                             </div>
-                            <div class="w-11 h-11 rounded-2xl bg-forest-50 text-forest flex items-center justify-center">
+                            <div class="w-11 h-11 rounded-2xl bg-forest-50 text-forest flex items-center justify-center shrink-0">
                                 <i data-lucide="leaf" class="w-6 h-6"></i>
                             </div>
                         </div>
 
                         <!-- Stat 1 -->
-                        <div class="p-4 rounded-2xl bg-cream border border-stone-200 flex items-start gap-4">
+                        <div class="p-4 rounded-2xl bg-cream border border-stone-200 hover:border-sdg12/40 transition-colors flex items-start gap-4">
                             <div class="p-2.5 rounded-xl bg-sdg12/15 text-sdg12 shrink-0">
                                 <i data-lucide="factory" class="w-5 h-5"></i>
                             </div>
                             <div>
-                                <span class="font-display font-extrabold text-2xl text-slateDark">~73%</span>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="font-display font-bold text-2xl text-slateDark">~73%</span>
+                                    <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Emisi Global</span>
+                                </div>
                                 <p class="text-xs sm:text-sm text-slate-600 mt-0.5">
-                                    Emisi gas rumah kaca global berasal dari produksi dan konsumsi energi
-                                    (listrik, panas, transportasi).
+                                    Emisi gas rumah kaca dunia berasal dari produksi &amp; konsumsi energi
+                                    (listrik, panas, dan transportasi).
                                 </p>
                             </div>
                         </div>
 
                         <!-- Stat 2 -->
-                        <div class="p-4 rounded-2xl bg-cream border border-stone-200 flex items-start gap-4">
+                        <div class="p-4 rounded-2xl bg-cream border border-stone-200 hover:border-forest/40 transition-colors flex items-start gap-4">
                             <div class="p-2.5 rounded-xl bg-forest/15 text-forest shrink-0">
                                 <i data-lucide="plug-zap" class="w-5 h-5"></i>
                             </div>
                             <div>
-                                <span class="font-display font-extrabold text-2xl text-slateDark">10–15%</span>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="font-display font-bold text-2xl text-slateDark">10–15%</span>
+                                    <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Standby Loss</span>
+                                </div>
                                 <p class="text-xs sm:text-sm text-slate-600 mt-0.5">
                                     Tagihan listrik rumah tangga terbuang percuma akibat
                                     <em>vampire power</em> perangkat dalam mode standby.
@@ -345,17 +447,29 @@
                         </div>
 
                         <!-- Stat 3 -->
-                        <div class="p-4 rounded-2xl bg-cream border border-stone-200 flex items-start gap-4">
+                        <div class="p-4 rounded-2xl bg-cream border border-stone-200 hover:border-amber-500/40 transition-colors flex items-start gap-4">
                             <div class="p-2.5 rounded-xl bg-amber-500/15 text-amber-600 shrink-0">
                                 <i data-lucide="trending-down" class="w-5 h-5"></i>
                             </div>
                             <div>
-                                <span class="font-display font-extrabold text-2xl text-slateDark">40% Penghematan</span>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="font-display font-bold text-2xl text-slateDark">Hingga 40%</span>
+                                    <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Target 2040</span>
+                                </div>
                                 <p class="text-xs sm:text-sm text-slate-600 mt-0.5">
-                                    Potensi penurunan emisi karbon global hingga 2040 hanya dengan menerapkan
+                                    Potensi penurunan emisi karbon global menuju 2040 hanya dengan menerapkan
                                     efisiensi energi secara konsisten.
                                 </p>
                             </div>
+                        </div>
+
+                        <!-- Card Footer Link -->
+                        <div class="pt-1 flex items-center justify-between text-xs text-slate-500">
+                            <span>Sumber: IEA &amp; UN SDG 12 Report</span>
+                            <a href="#urgensi" class="inline-flex items-center gap-1 font-semibold text-sdg12 hover:text-sdg12-dark transition-colors">
+                                <span>Lihat Data Lengkap</span>
+                                <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+                            </a>
                         </div>
                     </div>
                 </div>
