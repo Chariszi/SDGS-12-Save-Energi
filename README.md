@@ -40,6 +40,38 @@ Environment:
 | `DATABASE_URL` | required | PostgreSQL connection string |
 | `BIND_ADDR` | `127.0.0.1:8080` | Listen address |
 
+## Deploy to a home Ubuntu server
+
+One script provisions everything (packages, PostgreSQL role/DB, Rust, systemd
+unit) and reruns as a redeploy:
+
+```sh
+git clone https://github.com/Chariszi/SDGS-12-Save-Energi.git
+cd SDGS-12-Save-Energi
+sudo ./scripts/provision-ubuntu.sh
+```
+
+It ends by printing `http://<lan-ip>:8080`. Overrides: `REPO`, `BRANCH`,
+`PORT`. The unit is `sdg12.service` (`journalctl -u sdg12 -f`).
+
+### Public access without buying a domain
+
+| Option | Stable URL | Needs port forward | Notes |
+|---|---|---|---|
+| LAN only | no | no | `http://<lan-ip>:8080` |
+| Cloudflare quick tunnel | no | no | `cloudflared tunnel --url http://127.0.0.1:8080`, free HTTPS, new URL per run |
+| DuckDNS + Caddy | yes | yes | free `<name>.duckdns.org`, Caddy issues Let's Encrypt certs |
+| Tailscale | yes | no | private access only, not a public demo link |
+
+DuckDNS + Caddy, in short: point a DuckDNS subdomain at your public IP, forward
+TCP 80/443, run Caddy as a reverse proxy to `127.0.0.1:8080`; Caddy gets TLS
+automatically. Skip it if your ISP is CGNAT (check the WAN IP against your
+router's public IP).
+
+There is no authentication and no rate limiting, so a public URL lets anyone
+write data. Put write endpoints behind a gateway with limits before exposing
+this beyond a demo.
+
 ## Verify
 
 ```sh
