@@ -21,6 +21,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .nest("/api", api::router(pool))
         .route_service("/", ServeFile::new(format!("{frontend}/index.html")))
+        .route_service(
+            "/calculator.html",
+            ServeFile::new(format!("{frontend}/calculator.html"))
+        )
         .nest_service("/js", ServeDir::new(format!("{frontend}/js")))
         .fallback(|| async { (StatusCode::NOT_FOUND, "Not found") });
 

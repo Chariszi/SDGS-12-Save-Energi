@@ -1,4 +1,4 @@
-/**
+ /**
  * main.js
  * Entry point — inisialisasi semua modul setelah DOM siap.
  *
