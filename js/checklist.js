@@ -48,25 +48,31 @@
         pointsDisplay.textContent = pts;
         progressBar.style.width = `${pts}%`;
 
-        // ── Rank berdasarkan total poin ──────────────────────
+        // ── Rank berdasarkan total poin (SVG Lucide dinamis, tanpa emoji) ──
+        let iconName = 'sprout';
         if (pts === 0) {
-            rankTitle.textContent = 'Pemula Sadar Energi 🌱';
+            rankTitle.textContent = 'Pemula Sadar Energi';
+            iconName = 'sprout';
             badgeIconBox.className = 'w-14 h-14 rounded-2xl bg-sdg12-50 border border-sdg12/30 text-sdg12 flex items-center justify-center shrink-0';
             feedbackText.textContent = 'Pilih aksi di bawah ini untuk mulai berkontribusi pada pengurangan beban puncak listrik nasional.';
         } else if (pts < 50) {
-            rankTitle.textContent = 'Penggerak Efisiensi ⚡';
+            rankTitle.textContent = 'Penggerak Efisiensi';
+            iconName = 'zap';
             badgeIconBox.className = 'w-14 h-14 rounded-2xl bg-forest-50 border border-forest/30 text-forest flex items-center justify-center shrink-0';
             feedbackText.textContent = 'Langkah awal yang bagus! Teruskan kebiasaan baik ini setiap hari.';
         } else if (pts < 100) {
-            rankTitle.textContent = 'Pejuang Transisi Energi 🌍';
+            rankTitle.textContent = 'Pejuang Transisi Energi';
+            iconName = 'globe';
             badgeIconBox.className = 'w-14 h-14 rounded-2xl bg-sdg12 text-white flex items-center justify-center shrink-0 shadow-md';
             feedbackText.textContent = 'Hebat! Anda sudah menerapkan mayoritas prinsip konsumsi energi bertanggung jawab SDG 12.';
         } else {
-            rankTitle.textContent = 'Duta Utama SDG 12 Energi 🏆';
+            rankTitle.textContent = 'Duta Utama SDG 12 Energi';
+            iconName = 'trophy';
             badgeIconBox.className = 'w-14 h-14 rounded-2xl bg-gradient-to-br from-sdg12 to-forest text-white flex items-center justify-center shrink-0 shadow-lg';
             feedbackText.textContent = '100/100 Poin Terkumpul! Anda adalah teladan konsumsi energi bersih dan berkelanjutan.';
         }
 
+        badgeIconBox.innerHTML = `<i data-lucide="${iconName}" class="w-7 h-7"></i>`;
         lucide.createIcons();
     }
 

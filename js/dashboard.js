@@ -117,10 +117,11 @@
     window.addEventListener('scroll', triggerKPIAnimation, { passive: true });
     triggerKPIAnimation();
 
-    // ── Animasi entrance scroll untuk kartu di tiga section ───
+    // ── Animasi entrance scroll untuk kartu di section #urgensi & #dampak ──
+    // (#edukasi & #inovasi ditangani oleh effect.js agar tidak bentrok)
     if (!reduceMotion) {
         const animateOnScrollEls = document.querySelectorAll(
-            '#urgensi .rounded-3xl, #inovasi .rounded-3xl, #dampak .rounded-3xl'
+            '#urgensi .rounded-3xl, #dampak .rounded-3xl'
         );
 
         const entranceObserver = new IntersectionObserver((entries) => {
@@ -146,7 +147,11 @@
         if (event.key !== 'Escape') return;
         const modal = document.getElementById('challenge-modal');
         if (modal && !modal.classList.contains('hidden')) {
-            modal.classList.add('hidden');
+            if (typeof window.closeChallengeModal === 'function') {
+                window.closeChallengeModal();
+            } else {
+                modal.classList.add('hidden');
+            }
         }
     });
 

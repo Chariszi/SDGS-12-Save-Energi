@@ -61,19 +61,53 @@
         }
     }
 
+    function readStoredName() {
+        try {
+            const name = localStorage.getItem('sdg12_display_name');
+            return name && name.trim() ? name.trim().slice(0, 60) : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
     async function registerOnce() {
         let id = readStoredId();
         if (!id) {
             id = newUuid();
             storeId(id);
         }
+        const displayName = readStoredName();
+        const payload = displayName ? { id, display_name: displayName } : { id };
         const household = await window.api('/api/households', {
             method: 'POST',
-            body: JSON.stringify({ id }),
+            body: JSON.stringify(payload),
         });
         storeId(household.id);
         return household.id;
     }
+
+    window.getHouseholdProfile = function () {
+        let email = '';
+        try {
+            email = localStorage.getItem('sdg12_user_email') || '';
+        } catch (_) {
+            // ignore
+        }
+        return {
+            id: readStoredId(),
+            displayName: readStoredName() || 'Tamu Hemat Energi',
+            email,
+        };
+    };
+
+    window.logoutHousehold = function () {
+        try {
+            localStorage.removeItem('sdg12_logged_in');
+        } catch (_) {
+            // ignore
+        }
+        window.location.href = './login.html';
+    };
 
     async function register() {
         // Two fresh tabs would otherwise mint two households and orphan one.

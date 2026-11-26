@@ -96,7 +96,7 @@
                 },
                 x: {
                     grid:  { display: false },
-                    ticks: { font: { family: 'Plus Jakarta Sans', weight: '600', size: 11 } },
+                    ticks: { font: { family: 'Space Grotesk', weight: '600', size: 11 } },
                 },
             },
         },
@@ -110,10 +110,10 @@
 
             // Reset semua tab ke gaya non-aktif
             document.querySelectorAll('.sim-tab-btn').forEach(t => {
-                t.className = 'sim-tab-btn px-5 py-3 rounded-xl font-semibold text-sm bg-stone-100 text-slate-600 hover:bg-stone-200 transition-all flex items-center gap-2';
+                t.className = 'sim-tab-btn px-4 py-2.5 rounded-xl font-semibold text-sm bg-stone-100 text-slate-600 hover:bg-stone-200 transition-all flex items-center gap-2 cursor-pointer';
             });
             // Aktifkan tab yang dipilih
-            tab.className = 'sim-tab-btn px-5 py-3 rounded-xl font-semibold text-sm bg-sdg12 text-white shadow-md transition-all flex items-center gap-2';
+            tab.className = 'sim-tab-btn px-4 py-2.5 rounded-xl font-semibold text-sm bg-sdg12 text-white shadow-md transition-all flex items-center gap-2 cursor-pointer';
 
             // Update teks deskripsi
             document.getElementById('sim-chart-title').textContent  = data.chartTitle;

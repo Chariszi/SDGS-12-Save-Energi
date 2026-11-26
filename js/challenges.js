@@ -105,25 +105,29 @@
                     </div>
 
                     <div class="space-y-4 pt-3 border-t border-stone-100">
-                        <div class="space-y-1.5 text-xs text-slate-500">
-                            <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
+                            <div class="flex items-center gap-1.5">
                                 <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
                                 <span>${escapeHtml(item.location)}</span>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1.5">
                                 <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
                                 <span>${escapeHtml(item.time)}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 text-slate-600 font-medium tabular-nums">
+                                <i data-lucide="users" class="w-3.5 h-3.5 text-forest shrink-0"></i>
+                                <span>${Number(item.join_count) || 0} peserta</span>
                             </div>
                         </div>
 
                         <div class="flex items-center justify-between gap-3 pt-1">
-                            <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                            <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg tabular-nums">
                                 -${co2Label} kg CO₂e
                             </span>
                             <button type="button"
                                     onclick="joinChallenge(${Number(item.id)})"
                                     ${btnDisabled}
-                                    class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm ${btnCls}">
+                                    class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm ${item.joined || item.pending ? '' : 'cursor-pointer'} ${btnCls}">
                                 <i data-lucide="${item.joined ? 'check' : 'hand-heart'}" class="w-4 h-4"></i>
                                 <span>${btnLabel}</span>
                             </button>
@@ -153,6 +157,9 @@
             });
 
             item.joined = true;
+            if (result.awarded) {
+                item.join_count = (Number(item.join_count) || 0) + 1;
+            }
             renderChallenges();
             window.showToast(
                 result.awarded
@@ -192,8 +199,25 @@
     const backdrop = document.getElementById('challenge-modal-backdrop');
     const form = document.getElementById('post-challenge-form');
 
-    const openModal = () => modal.classList.remove('hidden');
-    const closeModal = () => modal.classList.add('hidden');
+    const titleInput = document.getElementById('chal-title');
+    let lastTriggerEl = null;
+
+    const openModal = () => {
+        lastTriggerEl = document.activeElement;
+        modal.classList.remove('hidden');
+        if (titleInput) {
+            requestAnimationFrame(() => titleInput.focus());
+        }
+    };
+    const closeModal = () => {
+        modal.classList.add('hidden');
+        if (lastTriggerEl && typeof lastTriggerEl.focus === 'function') {
+            lastTriggerEl.focus();
+        } else if (openBtn) {
+            openBtn.focus();
+        }
+    };
+    window.closeChallengeModal = closeModal;
 
     openBtn.addEventListener('click', openModal);
     closeBtn.addEventListener('click', closeModal);
