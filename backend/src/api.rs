@@ -1,9 +1,10 @@
 use axum::{
-    extract::{rejection::JsonRejection, DefaultBodyLimit, Path, Query, State},
+    extract::{rejection::JsonRejection, DefaultBodyLimit, Path, Request, State},
     http::StatusCode,
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post, put},
-    Json, Router,
+    Extension, Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
@@ -15,26 +16,56 @@ const MAX_CHALLENGES_PER_DAY: i64 = 20;
 
 pub fn router(pool: PgPool) -> Router {
     Router::new()
+        .merge(crate::auth::routes())
         .route(
             "/health",
             get(|| async { Json(serde_json::json!({ "status": "ok" })) }),
         )
-        .route("/households", post(create_household))
-        .route("/households/{id}/score", get(get_score))
+        .route("/score", get(get_score))
         .route("/impact", get(get_impact))
         .route("/challenges", get(list_challenges).post(create_challenge))
         .route("/challenges/{id}/join", post(join_challenge))
         .route("/pledges", get(list_pledges))
         .route("/pledges/{code}", put(set_pledge))
         .route("/assessments", post(create_assessment))
+        .layer(middleware::from_fn_with_state(pool.clone(), load_session))
         .layer(DefaultBodyLimit::max(16 * 1024))
         .with_state(pool)
 }
 
+/// Session user resolved once per request; `None` for guests. Written to
+/// request extensions by `load_session` so handlers can pin writes to a
+/// logged-in household instead of trusting a client-supplied id.
+#[derive(Clone, Debug)]
+pub struct CurrentUser(pub Option<crate::auth::AuthUser>);
+
+async fn load_session(
+    State(pool): State<PgPool>,
+    mut request: Request,
+    next: Next,
+) -> Result<Response, ApiError> {
+    let user = crate::auth::user_from_headers(&pool, request.headers()).await?;
+    request.extensions_mut().insert(CurrentUser(user));
+    Ok(next.run(request).await)
+}
+
+impl CurrentUser {
+    /// The session always wins over the id in the body/query, so a forged
+    /// household id can never read or write another account's data.
+    fn household_id(&self) -> Result<Uuid, ApiError> {
+        self.0
+            .as_ref()
+            .map(|user| user.household_id)
+            .ok_or_else(|| ApiError::Unauthorized("silakan masuk terlebih dahulu".into()))
+    }
+}
+
 #[derive(Debug)]
-enum ApiError {
+pub enum ApiError {
     BadRequest(String),
+    Unauthorized(String),
     NotFound(String),
+    Conflict(String),
     TooManyRequests(String),
     Internal(sqlx::Error),
 }
@@ -49,7 +80,9 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
+            ApiError::Unauthorized(message) => (StatusCode::UNAUTHORIZED, message),
             ApiError::NotFound(message) => (StatusCode::NOT_FOUND, message),
+            ApiError::Conflict(message) => (StatusCode::CONFLICT, message),
             ApiError::TooManyRequests(message) => (StatusCode::TOO_MANY_REQUESTS, message),
             ApiError::Internal(error) => {
                 eprintln!("database error: {error}");
@@ -88,65 +121,13 @@ fn clean(value: &str, field: &str, min: usize, max: usize) -> Result<String, Api
 
 /// Axum's built-in JSON rejection is plain text with a 422 status. Route every
 /// malformed body through the same JSON error envelope as the rest of the API.
-fn json_body<T>(payload: Result<Json<T>, JsonRejection>) -> Result<T, ApiError> {
+pub(crate) fn json_body<T>(payload: Result<Json<T>, JsonRejection>) -> Result<T, ApiError> {
     payload
         .map(|Json(value)| value)
         .map_err(|rejection| ApiError::BadRequest(rejection.body_text()))
 }
 
-fn parse_uuid(value: &str, field: &str) -> Result<Uuid, ApiError> {
-    Uuid::parse_str(value)
-        .map_err(|_| ApiError::BadRequest(format!("{field} must be a valid UUID")))
-}
-
-fn parse_optional_uuid(value: Option<&str>, field: &str) -> Result<Option<Uuid>, ApiError> {
-    match value {
-        Some(raw) => Ok(Some(parse_uuid(raw, field)?)),
-        None => Ok(None),
-    }
-}
-
 // ── Households ────────────────────────────────────────────────
-
-#[derive(Deserialize)]
-struct NewHousehold {
-    id: Option<Uuid>,
-    display_name: Option<String>,
-}
-
-#[derive(Serialize, FromRow)]
-struct HouseholdOut {
-    id: Uuid,
-    display_name: Option<String>,
-}
-
-async fn create_household(
-    State(pool): State<PgPool>,
-    payload: Result<Json<NewHousehold>, JsonRejection>,
-) -> Result<Json<HouseholdOut>, ApiError> {
-    let body = json_body(payload)?;
-    let display_name = match body.display_name.as_deref().map(str::trim) {
-        Some("") | None => None,
-        Some(name) => Some(clean(name, "display_name", 1, 60)?),
-    };
-    let id = body.id.unwrap_or_else(Uuid::new_v4);
-
-    // Client-generated UUID + ON CONFLICT makes registration idempotent, so a
-    // cached id survives reloads and a reset database without a 404.
-    let household = sqlx::query_as::<_, HouseholdOut>(
-        "INSERT INTO households (id, display_name)
-         VALUES ($1, $2)
-         ON CONFLICT (id) DO UPDATE
-           SET display_name = COALESCE(households.display_name, EXCLUDED.display_name)
-         RETURNING id, display_name",
-    )
-    .bind(id)
-    .bind(display_name)
-    .fetch_one(&pool)
-    .await?;
-
-    Ok(Json(household))
-}
 
 #[derive(Serialize, FromRow)]
 struct Score {
@@ -158,9 +139,9 @@ struct Score {
 
 async fn get_score(
     State(pool): State<PgPool>,
-    Path(raw_id): Path<String>,
+    Extension(user): Extension<CurrentUser>,
 ) -> Result<Json<Score>, ApiError> {
-    let id = parse_uuid(&raw_id, "household_id")?;
+    let id = user.household_id()?;
     ensure_household(&pool, id).await?;
 
     let score = sqlx::query_as::<_, Score>(
@@ -321,16 +302,11 @@ struct Challenge {
     join_count: i64,
 }
 
-#[derive(Deserialize)]
-struct ChallengeQuery {
-    household_id: Option<String>,
-}
-
 async fn list_challenges(
     State(pool): State<PgPool>,
-    Query(query): Query<ChallengeQuery>,
+    Extension(user): Extension<CurrentUser>,
 ) -> Result<Json<Vec<Challenge>>, ApiError> {
-    let household_id = parse_optional_uuid(query.household_id.as_deref(), "household_id")?;
+    let household_id = user.0.as_ref().map(|logged_in| logged_in.household_id);
     if let Some(id) = household_id {
         ensure_household(&pool, id).await?;
     }
@@ -355,7 +331,6 @@ async fn list_challenges(
 
 #[derive(Deserialize)]
 struct NewChallenge {
-    household_id: Uuid,
     category: String,
     title: String,
     description: String,
@@ -365,9 +340,11 @@ struct NewChallenge {
 
 async fn create_challenge(
     State(pool): State<PgPool>,
+    Extension(user): Extension<CurrentUser>,
     payload: Result<Json<NewChallenge>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Challenge>), ApiError> {
     let body = json_body(payload)?;
+    let household_id = user.household_id()?;
 
     if !matches!(
         body.category.as_str(),
@@ -393,7 +370,7 @@ async fn create_challenge(
     // requests can both observe 19 rows and both insert, defeating the cap.
     let locked: Option<Uuid> =
         sqlx::query_scalar("SELECT id FROM households WHERE id = $1 FOR UPDATE")
-            .bind(body.household_id)
+            .bind(household_id)
             .fetch_optional(&mut *tx)
             .await?;
     if locked.is_none() {
@@ -404,7 +381,7 @@ async fn create_challenge(
         "SELECT count(*) FROM challenges
          WHERE household_id = $1 AND created_at > now() - interval '1 day'",
     )
-    .bind(body.household_id)
+    .bind(household_id)
     .fetch_one(&mut *tx)
     .await?;
     if recent >= MAX_CHALLENGES_PER_DAY {
@@ -421,7 +398,7 @@ async fn create_challenge(
                    kwh_saved AS kwh, co2_saved AS co2, location,
                    time_label AS time, FALSE AS joined, 0::bigint AS join_count",
     )
-    .bind(body.household_id)
+    .bind(household_id)
     .bind(&body.category)
     .bind(&title)
     .bind(&description)
@@ -435,11 +412,6 @@ async fn create_challenge(
     Ok((StatusCode::CREATED, Json(challenge)))
 }
 
-#[derive(Deserialize)]
-struct JoinBody {
-    household_id: Uuid,
-}
-
 #[derive(Serialize)]
 struct JoinOutcome {
     joined: bool,
@@ -448,14 +420,14 @@ struct JoinOutcome {
 
 async fn join_challenge(
     State(pool): State<PgPool>,
+    Extension(user): Extension<CurrentUser>,
     Path(raw_id): Path<String>,
-    payload: Result<Json<JoinBody>, JsonRejection>,
 ) -> Result<Json<JoinOutcome>, ApiError> {
     let id: i64 = raw_id
         .parse()
         .map_err(|_| ApiError::BadRequest("challenge id must be a number".into()))?;
-    let body = json_body(payload)?;
-    ensure_household(&pool, body.household_id).await?;
+    let household_id = user.household_id()?;
+    ensure_household(&pool, household_id).await?;
 
     let exists: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM challenges WHERE id = $1)")
         .bind(id)
@@ -471,7 +443,7 @@ async fn join_challenge(
          ON CONFLICT DO NOTHING
          RETURNING 1",
     )
-    .bind(body.household_id)
+    .bind(household_id)
     .bind(id)
     .fetch_optional(&pool)
     .await?;
@@ -496,9 +468,9 @@ struct Pledge {
 
 async fn list_pledges(
     State(pool): State<PgPool>,
-    Query(query): Query<ChallengeQuery>,
+    Extension(user): Extension<CurrentUser>,
 ) -> Result<Json<Vec<Pledge>>, ApiError> {
-    let household_id = parse_optional_uuid(query.household_id.as_deref(), "household_id")?;
+    let household_id = user.0.as_ref().map(|logged_in| logged_in.household_id);
     if let Some(id) = household_id {
         ensure_household(&pool, id).await?;
     }
@@ -518,7 +490,6 @@ async fn list_pledges(
 
 #[derive(Deserialize)]
 struct PledgeBody {
-    household_id: Uuid,
     completed: bool,
 }
 
@@ -531,11 +502,13 @@ struct PledgeOutcome {
 
 async fn set_pledge(
     State(pool): State<PgPool>,
+    Extension(user): Extension<CurrentUser>,
     Path(code): Path<String>,
     payload: Result<Json<PledgeBody>, JsonRejection>,
 ) -> Result<Json<PledgeOutcome>, ApiError> {
     let body = json_body(payload)?;
-    ensure_household(&pool, body.household_id).await?;
+    let household_id = user.household_id()?;
+    ensure_household(&pool, household_id).await?;
 
     let points: Option<i16> = sqlx::query_scalar("SELECT points FROM pledges WHERE code = $1")
         .bind(&code)
@@ -551,13 +524,13 @@ async fn set_pledge(
              VALUES ($1, $2)
              ON CONFLICT DO NOTHING",
         )
-        .bind(body.household_id)
+        .bind(household_id)
         .bind(&code)
         .execute(&pool)
         .await?;
     } else {
         sqlx::query("DELETE FROM pledge_completions WHERE household_id = $1 AND pledge_code = $2")
-            .bind(body.household_id)
+            .bind(household_id)
             .bind(&code)
             .execute(&pool)
             .await?;
@@ -574,7 +547,6 @@ async fn set_pledge(
 
 #[derive(Deserialize)]
 struct AssessmentBody {
-    household_id: Uuid,
     kwh_monthly: i32,
     ac_hours: i32,
     transport: crate::calc::Transport,
@@ -584,10 +556,12 @@ struct AssessmentBody {
 
 async fn create_assessment(
     State(pool): State<PgPool>,
+    Extension(user): Extension<CurrentUser>,
     payload: Result<Json<AssessmentBody>, JsonRejection>,
 ) -> Result<Json<crate::calc::Assessment>, ApiError> {
     let body = json_body(payload)?;
-    ensure_household(&pool, body.household_id).await?;
+    let household_id = user.household_id()?;
+    ensure_household(&pool, household_id).await?;
 
     let input = AssessmentInput {
         kwh_monthly: body.kwh_monthly,
@@ -616,7 +590,7 @@ async fn create_assessment(
            grade = EXCLUDED.grade,
            updated_at = now()",
     )
-    .bind(body.household_id)
+    .bind(household_id)
     .bind(input.kwh_monthly)
     .bind(input.ac_hours)
     .bind(input.transport.as_str())

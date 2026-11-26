@@ -14,7 +14,9 @@ The site has five stateful features. Everything else is static content or client
 | Energy calculator | Inputs, computed CO₂/cost/grade/recommendations | Latest result per household in `energy_assessments` |
 | Personal score | 20/join + 30/challenge created + pledge points | Derived, never stored |
 
-No login. A household is an anonymous client-generated UUID kept in `localStorage`; the UUID is a bearer capability for that household's data.
+Email + password login. Each user owns exactly one household, resolved
+server-side from the session cookie; the client never sends a household id for
+writes.
 
 ## 2. Entities
 
@@ -24,6 +26,25 @@ No login. A household is an anonymous client-generated UUID kept in `localStorag
 | id | UUID PK | Client-generated v4, or server default |
 | display_name | TEXT NULL | Trimmed, 1–60 chars when present |
 | created_at | TIMESTAMPTZ | Server `now()` |
+
+### users
+| Column | Type | Rules |
+|---|---|---|
+| id | UUID PK | Server-generated |
+| household_id | UUID UNIQUE FK households | `ON DELETE CASCADE`; created with the account |
+| email | TEXT | Stored lowercased, 3–254 chars, unique case-insensitively |
+| password_hash | TEXT | Argon2id PHC string, never logged |
+| created_at | TIMESTAMPTZ | Server `now()` |
+
+### sessions
+`token_hash` TEXT PK = SHA-256 of the 256-bit cookie token (the raw token is never
+stored), `user_id` FK users `ON DELETE CASCADE`, `expires_at` (14 days),
+`created_at`. Expired rows are purged on login and logout.
+
+### auth_attempts
+Append-only log of login outcomes (`email`, `success`, `attempted_at`). Login is
+refused (429) when an email has ≥ 8 failures in the last 15 minutes; rows older
+than a day are pruned.
 
 ### challenges
 | Column | Type | Rules |
@@ -84,17 +105,20 @@ Base path `/api`. JSON in/out, camel-free snake_case. Errors: `{ "error": "messa
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
 | GET | `/health` | — | `{status:"ok"}` |
-| POST | `/households` | `{id?, display_name?}` | `{id, display_name}`; idempotent by id |
+| POST | `/auth/register` | `{email, password, display_name}` | `{id, household_id, email, display_name}` + session cookie; 409 if email taken |
+| POST | `/auth/login` | `{email, password}` | same user shape + session cookie; 401 wrong credentials, 429 after 8 failures/15 min per email |
+| POST | `/auth/logout` | — | 204, clears cookie and deletes the session row |
+| GET | `/auth/me` | — | current user; 401 when anonymous |
 | GET | `/impact` | — | `{kwh_saved, co2_prevented, households, rp_saved_million, distribution:{listrik,transportasi,terbarukan}}` |
-| GET | `/challenges` | `?household_id=` | challenge array (`id, category, title, description, kwh, co2, location, time, joined, join_count`) newest first, max 200 |
-| POST | `/challenges` | `{household_id, category, title, description, kwh, location}` | 201 challenge; max 20 per household/day (429) |
-| POST | `/challenges/{id}/join` | `{household_id}` | `{joined:true, awarded:bool}`; idempotent |
-| GET | `/pledges` | `?household_id=` | pledge array with `completed` |
-| PUT | `/pledges/{code}` | `{household_id, completed}` | `{code, completed, points}` |
-| POST | `/assessments` | `{household_id, kwh_monthly, ac_hours, transport, led, unplug}` | computed result + `recommendations[]` |
-| GET | `/households/{id}/score` | — | `{total, challenges_joined, challenges_created, pledge_points}` |
+| GET | `/challenges` | — | challenge array (`id, category, title, description, kwh, co2, location, time, joined, join_count`) newest first, max 200; `joined` reflects the session user |
+| POST | `/challenges` | `{category, title, description, kwh, location}` | 201 challenge; max 20 per household/day (429); 401 anonymous |
+| POST | `/challenges/{id}/join` | — | `{joined:true, awarded:bool}`; idempotent; 401 anonymous |
+| GET | `/pledges` | — | pledge array with `completed` for the session user |
+| PUT | `/pledges/{code}` | `{completed}` | `{code, completed, points}`; 401 anonymous |
+| POST | `/assessments` | `{kwh_monthly, ac_hours, transport, led, unplug}` | computed result + `recommendations[]`; 401 anonymous |
+| GET | `/score` | — | `{total, challenges_joined, challenges_created, pledge_points}`; 401 anonymous |
 
-Validation is server-side at every boundary. Values are range/enum checked, strings trimmed and length checked, SQL is parameterized, JSON body capped at 16 KiB. `GET /api/impact` is public; household-scoped reads/writes require the UUID capability.
+Validation is server-side at every boundary. Values are range/enum checked, strings trimmed and length checked, SQL is parameterized, JSON body capped at 16 KiB. `GET /api/impact` and the challenge/pledge listings are public; every write requires a session, and ownership comes from the session cookie, never the request body.
 
 ## 5. Seed data
 
@@ -106,4 +130,4 @@ Seed rows are labelled as campaign baseline, not measured results.
 
 ## 6. Non-goals
 
-Authentication, admin moderation, multi-campaign tenancy, assessment history, offline sync, and real-time push. The ticker polls every 15 s.
+Admin moderation, multi-campaign tenancy, assessment history, offline sync, and real-time push. The ticker polls every 15 s.

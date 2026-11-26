@@ -1,4 +1,5 @@
 mod api;
+mod auth;
 mod calc;
 
 use axum::{http::StatusCode, Router};

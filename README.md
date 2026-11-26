@@ -39,6 +39,7 @@ Environment:
 |---|---|---|
 | `DATABASE_URL` | required | PostgreSQL connection string |
 | `BIND_ADDR` | `127.0.0.1:8080` | Listen address |
+| `COOKIE_SECURE` | unset | `1` adds `Secure` to the session cookie (enable behind HTTPS) |
 
 ## Deploy to a home Ubuntu server
 
@@ -68,9 +69,10 @@ TCP 80/443, run Caddy as a reverse proxy to `127.0.0.1:8080`; Caddy gets TLS
 automatically. Skip it if your ISP is CGNAT (check the WAN IP against your
 router's public IP).
 
-There is no authentication and no rate limiting, so a public URL lets anyone
-write data. Put write endpoints behind a gateway with limits before exposing
-this beyond a demo.
+Accounts are required for all writes (Argon2id password hashes, `HttpOnly`
+session cookies). Set `COOKIE_SECURE=1` when serving over HTTPS. There is no
+per-IP rate limiting, so put a reverse proxy with limits in front before
+exposing this beyond a demo.
 
 ## Verify
 
@@ -88,10 +90,13 @@ API contract: `DATA_REQUIREMENTS.md` §4.
 
 ## Notes
 
-- No accounts. The browser generates a UUID household id stored in
-  `localStorage`; that UUID is the capability for its data.
-- There is no built-in authentication or per-IP rate limiting. If this is ever
-  exposed publicly, put write endpoints behind a gateway with request limits.
+- Email + password accounts. Passwords are hashed with Argon2id; sessions are
+  random 256-bit tokens stored only as SHA-256 hashes, delivered in an
+  `HttpOnly; SameSite=Lax` cookie (`Secure` with `COOKIE_SECURE=1`).
+- Every write requires a session; the server takes the household from the
+  session, never from the request body. Reads may be anonymous.
+- Failed logins are capped at 8 per email per 15 minutes. There is no per-IP
+  limit, so put a reverse proxy with request limits in front of a public URL.
 - Community counters are a labelled demo baseline (`community_baseline`) plus
   real joins and active households.
 - The calculator keeps only the latest assessment per household.
