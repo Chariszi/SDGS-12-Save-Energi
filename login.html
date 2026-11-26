@@ -301,14 +301,12 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-2">
-                <button type="button" id="btn-guest-login"
-                        class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slateDark hover:bg-slate-800
-                               text-white text-xs font-semibold transition-colors cursor-pointer">
-                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-sdg12-light"></i>
-                    <span>Masuk sebagai Tamu</span>
-                </button>
-            </div>
+            <a href="./index.html"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/90 hover:bg-white
+                      border border-stone-200 text-slateDark text-xs font-semibold transition-colors">
+                <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-sdg12-dark"></i>
+                <span>Dashboard</span>
+            </a>
         </div>
     </header>
 
@@ -448,11 +446,11 @@
                                     <label for="reg-password" class="block text-xs font-semibold text-slate-700">
                                         Kata Sandi
                                     </label>
-                                    <span id="pw-strength-label" class="text-[10px] font-semibold text-slate-400">Min. 6</span>
+                                    <span id="pw-strength-label" class="text-[10px] font-semibold text-slate-400">Min. 8</span>
                                 </div>
                                 <div class="relative input-group">
                                     <i data-lucide="lock" class="input-icon w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                                    <input type="password" id="reg-password" name="password" required minlength="6" autocomplete="new-password"
+                                    <input type="password" id="reg-password" name="password" required minlength="8" autocomplete="new-password"
                                            placeholder="Kata sandi"
                                            class="w-full pl-9 pr-9 py-2.5 rounded-xl bg-cream/70 border border-stone-300
                                                   focus:bg-white focus:border-forest focus:ring-2 focus:ring-forest/20 outline-none text-sm transition-all">
@@ -470,7 +468,7 @@
                                 </label>
                                 <div class="relative input-group">
                                     <i data-lucide="shield-check" class="input-icon w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                                    <input type="password" id="reg-password-confirm" name="password_confirm" required minlength="6" autocomplete="new-password"
+                                    <input type="password" id="reg-password-confirm" name="password_confirm" required minlength="8" autocomplete="new-password"
                                            placeholder="Ulangi sandi"
                                            class="w-full pl-9 pr-9 py-2.5 rounded-xl bg-cream/70 border border-stone-300
                                                   focus:bg-white focus:border-forest focus:ring-2 focus:ring-forest/20 outline-none text-sm transition-all">

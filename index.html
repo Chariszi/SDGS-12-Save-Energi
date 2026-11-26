@@ -9,7 +9,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SaveEnergi — Konsumsi &amp; Produksi Energi Bertanggung Jawab (SDG 12)</title>
 
-    <!-- Wajib Login: arahkan ke login.html sebelum halaman tampil jika belum ada sesi aktif -->
+    <!-- Cek cepat: tanpa flag sesi lokal, langsung ke halaman masuk. Sesi asli
+         divalidasi server pada setiap permintaan API (cookie HttpOnly). -->
     <script>
         (function () {
             try {
@@ -304,7 +305,7 @@
                             T
                         </span>
                         <div class="leading-none pr-1 max-w-[120px]">
-                            <span id="nav-user-name" class="text-xs font-semibold text-slateDark block truncate">Tamu</span>
+                            <span id="nav-user-name" class="text-xs font-semibold text-slateDark block truncate">Pengguna</span>
                             <span id="nav-user-email" class="text-[10px] text-slate-500 block truncate"></span>
                         </div>
                         <button type="button" id="logout-btn" title="Keluar ke halaman login"
@@ -340,7 +341,7 @@
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5 text-xs font-semibold text-slateDark truncate">
                             <i data-lucide="user" class="w-3.5 h-3.5 text-forest shrink-0"></i>
-                            <span id="mobile-user-name" class="truncate">Tamu</span>
+                            <span id="mobile-user-name" class="truncate">Pengguna</span>
                         </div>
                         <div id="mobile-user-email" class="text-[11px] text-slate-500 mt-0.5 truncate">Skor SDG 12 Saya</div>
                     </div>

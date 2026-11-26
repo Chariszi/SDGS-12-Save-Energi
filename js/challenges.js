@@ -12,7 +12,6 @@
 (function () {
     // ── State ──────────────────────────────────────────────────
     let currentFilter = 'all';
-    let householdId = null;
     let challengeListings = [];
     let formPending = false;
     const pendingJoins = new Set();
@@ -150,10 +149,8 @@
         renderChallenges();
 
         try {
-            householdId ||= await window.getHouseholdId();
             const result = await window.api(`/api/challenges/${id}/join`, {
                 method: 'POST',
-                body: JSON.stringify({ household_id: householdId }),
             });
 
             item.joined = true;
@@ -231,7 +228,6 @@
 
         const submitBtn = form.querySelector('button[type="submit"]');
         const payload = {
-            household_id: householdId,
             title: document.getElementById('chal-title').value.trim(),
             category: document.getElementById('chal-category').value,
             kwh: parseFloat(document.getElementById('chal-kwh').value) || 1.0,
@@ -242,10 +238,9 @@
         formPending = true;
         if (submitBtn) submitBtn.disabled = true;
         try {
-            householdId ||= await window.getHouseholdId();
             const created = await window.api('/api/challenges', {
                 method: 'POST',
-                body: JSON.stringify({ ...payload, household_id: householdId }),
+                body: JSON.stringify(payload),
             });
 
             challengeListings.unshift(created);
@@ -265,8 +260,7 @@
     // ── Initial load ───────────────────────────────────────────
     (async function load() {
         try {
-            householdId = await window.getHouseholdId();
-            challengeListings = await window.api(`/api/challenges?household_id=${householdId}`);
+            challengeListings = await window.api('/api/challenges');
             renderChallenges();
         } catch (error) {
             grid.innerHTML = `

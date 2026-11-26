@@ -282,11 +282,9 @@
 
     async function calculate(seq) {
         try {
-            const householdId = await window.getHouseholdId();
             const result = await window.api('/api/assessments', {
                 method: 'POST',
                 body: JSON.stringify({
-                    household_id: householdId,
                     kwh_monthly: currentKwh,
                     ac_hours: acHours,
                     transport: currentTransport,

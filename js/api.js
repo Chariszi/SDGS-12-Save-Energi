@@ -1,12 +1,20 @@
 /**
  * api.js
- * Same-origin API client + anonymous household identity.
- * Loaded first: every other module depends on window.api/getHouseholdId.
+ * Same-origin API client + cookie session (HttpOnly; the page never sees the token).
+ * Loaded first: every other module depends on window.api/loadSession.
  */
 
 (function () {
     const STORAGE_KEY = 'sdg12_household_id';
-    let householdPromise = null;
+    let sessionPromise = null;
+    let redirecting = false;
+
+    // Only one navigation wins when several requests answer 401 at once.
+    function goToLogin() {
+        if (redirecting) return;
+        redirecting = true;
+        window.location.replace('./login.html');
+    }
 
     window.api = async function (path, options = {}) {
         const timeout = typeof AbortSignal !== 'undefined' && AbortSignal.timeout
@@ -27,20 +35,18 @@
         }
 
         if (!response.ok) {
-            throw new Error((data && data.error) || `Permintaan gagal (${response.status})`);
+            const error = new Error((data && data.error) || `Permintaan gagal (${response.status})`);
+            error.status = response.status;
+            // A dead/absent session anywhere except the login page means the
+            // cached localStorage flag is stale: send the user to sign in.
+            const onLoginPage = /\/login(\.html)?$/.test(window.location.pathname);
+            if (response.status === 401 && !onLoginPage) {
+                goToLogin();
+            }
+            throw error;
         }
         return data;
     };
-
-    function newUuid() {
-        if (crypto.randomUUID) return crypto.randomUUID();
-        // crypto.randomUUID needs a secure context; getRandomValues does not.
-        const bytes = crypto.getRandomValues(new Uint8Array(16));
-        bytes[6] = (bytes[6] & 0x0f) | 0x40;
-        bytes[8] = (bytes[8] & 0x3f) | 0x80;
-        const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-    }
 
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -70,20 +76,46 @@
         }
     }
 
-    async function registerOnce() {
-        let id = readStoredId();
-        if (!id) {
-            id = newUuid();
-            storeId(id);
+    function clearSession() {
+        try {
+            localStorage.removeItem('sdg12_logged_in');
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem('sdg12_display_name');
+            localStorage.removeItem('sdg12_user_email');
+        } catch (_) {
+            // Storage disabled: nothing cached to clear.
         }
-        const displayName = readStoredName();
-        const payload = displayName ? { id, display_name: displayName } : { id };
-        const household = await window.api('/api/households', {
-            method: 'POST',
-            body: JSON.stringify(payload),
-        });
-        storeId(household.id);
-        return household.id;
+    }
+
+    window.loadSession = function () {
+        if (!sessionPromise) {
+            sessionPromise = fetchSession().catch((error) => {
+                sessionPromise = null;
+                throw error;
+            });
+        }
+        return sessionPromise;
+    };
+
+    // The server is the only source of truth: the HttpOnly cookie is what
+    // authenticates, so every page load asks /auth/me who we are.
+    async function fetchSession() {
+        try {
+            const user = await window.api('/api/auth/me');
+            storeId(user.household_id);
+            try {
+                localStorage.setItem('sdg12_logged_in', '1');
+                localStorage.setItem('sdg12_display_name', user.display_name || 'Pengguna SaveEnergi');
+                localStorage.setItem('sdg12_user_email', user.email || '');
+            } catch (_) {
+                // ignore storage errors
+            }
+            window.sdg12User = user;
+            return user;
+        } catch (error) {
+            clearSession();
+            throw error;
+        }
     }
 
     window.getHouseholdProfile = function () {
@@ -95,36 +127,20 @@
         }
         return {
             id: readStoredId(),
-            displayName: readStoredName() || 'Tamu Hemat Energi',
+            displayName: readStoredName() || 'Pengguna SaveEnergi',
             email,
         };
     };
 
-    window.logoutHousehold = function () {
+    window.logoutHousehold = async function () {
         try {
-            localStorage.removeItem('sdg12_logged_in');
+            // Revoke the server-side session, then drop the cookie via Set-Cookie.
+            await window.api('/api/auth/logout', { method: 'POST' });
         } catch (_) {
-            // ignore
+            // Already signed out or offline: clearing local state still wins.
         }
-        window.location.href = './login.html';
-    };
-
-    async function register() {
-        // Two fresh tabs would otherwise mint two households and orphan one.
-        if (navigator.locks && navigator.locks.request) {
-            return navigator.locks.request('sdg12_household_register', registerOnce);
-        }
-        return registerOnce();
-    }
-
-    window.getHouseholdId = function () {
-        if (!householdPromise) {
-            householdPromise = register().catch((error) => {
-                householdPromise = null;
-                throw error;
-            });
-        }
-        return householdPromise;
+        clearSession();
+        goToLogin();
     };
 
     const HTML_ESCAPES = {

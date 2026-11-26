@@ -27,7 +27,7 @@
     // Sinkronkan nama, inisial avatar, email & aksi keluar
     const profile = typeof window.getHouseholdProfile === 'function'
         ? window.getHouseholdProfile()
-        : { id: null, displayName: 'Tamu Hemat Energi', email: '' };
+        : { id: null, displayName: 'Pengguna SaveEnergi', email: '' };
 
     const navUserAvatar = document.getElementById('nav-user-avatar');
     const navUserName = document.getElementById('nav-user-name');
@@ -41,6 +41,11 @@
     if (navUserEmail) navUserEmail.textContent = profile.email || 'Sesi aktif';
     if (mobileUserName) mobileUserName.textContent = profile.displayName;
     if (mobileUserEmail) mobileUserEmail.textContent = profile.email || 'Skor SDG 12 Saya';
+
+    // Revalidate the cookie in the background; 401 redirects to login.
+    if (typeof window.loadSession === 'function') {
+        window.loadSession().catch(() => {});
+    }
 
     const logoutBtn = document.getElementById('logout-btn');
     const mobileLogoutBtn = document.getElementById('mobile-logout-btn');

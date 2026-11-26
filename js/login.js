@@ -3,12 +3,12 @@
  * Curved Double-Slider Animated Login & Sign Up (SaveEnergi SDG 12):
  *  - Animasi panel overlay melengkung meluncur kanan ↔ kiri saat pindah Masuk ↔ Daftar
  *  - Onboarding pengguna baru: Nama, Email, Sandi + Konfirmasi, & Profil Daya Listrik PLN awal
- *  - Hash SHA-256 kata sandi via Web Crypto API (fallback aman non-HTTPS)
- *  - Sinkronisasi otomatis ke backend /api/households & live stats /api/impact
+ *  - Autentikasi nyata lewat backend (/api/auth/*); kata sandi di-hash Argon2id
+ *    di server dan sesi disimpan pada cookie HttpOnly
+ *  - Live stats /api/impact
  */
 
 (function () {
-    const ACCOUNTS_KEY = 'sdg12_accounts';
     const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
     const stage = document.getElementById('login-stage');
@@ -45,8 +45,6 @@
     const pwStrengthLabel = document.getElementById('pw-strength-label');
     const plnTierBtns = document.querySelectorAll('.pln-tier-btn');
 
-    const btnGuest = document.getElementById('btn-guest-login');
-
     const successOverlay = document.getElementById('login-success-overlay');
     const successCheckPath = document.getElementById('success-check-path');
     const successGreeting = document.getElementById('success-greeting');
@@ -55,46 +53,6 @@
     let mode = 'login';
     let selectedInitialKwh = 300;
     let submitting = false;
-
-    function generateUuid() {
-        if (crypto.randomUUID) return crypto.randomUUID();
-        const bytes = crypto.getRandomValues(new Uint8Array(16));
-        bytes[6] = (bytes[6] & 0x0f) | 0x40;
-        bytes[8] = (bytes[8] & 0x3f) | 0x80;
-        const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-    }
-
-    async function hashPassword(plain) {
-        const salted = `sdg12:${plain}`;
-        if (window.crypto && window.crypto.subtle) {
-            const buf = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(salted));
-            return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
-        }
-        let hash = 2166136261;
-        for (let i = 0; i < salted.length; i += 1) {
-            hash ^= salted.charCodeAt(i);
-            hash = Math.imul(hash, 16777619);
-        }
-        return `fnv:${(hash >>> 0).toString(16)}`;
-    }
-
-    function readAccounts() {
-        try {
-            const raw = localStorage.getItem(ACCOUNTS_KEY);
-            return raw ? JSON.parse(raw) : {};
-        } catch (_) {
-            return {};
-        }
-    }
-
-    function writeAccounts(map) {
-        try {
-            localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(map));
-        } catch (_) {
-            // Storage unavailable
-        }
-    }
 
     // ── Double-Slider Mode Switch: Login ↔ Sign Up ──────────────
     function setAuthMode(nextMode) {
@@ -160,14 +118,14 @@
     regPassword.addEventListener('input', () => {
         const val = regPassword.value;
         let score = 0;
-        if (val.length >= 6) score += 1;
+        if (val.length >= 8) score += 1;
         if (val.length >= 10) score += 1;
         if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score += 1;
         if (/[0-9]/.test(val) || /[^A-Za-z0-9]/.test(val)) score += 1;
 
         if (!val) {
             pwStrengthBar.style.width = '0%';
-            pwStrengthLabel.textContent = 'Min. 6';
+            pwStrengthLabel.textContent = 'Min. 8';
             pwStrengthLabel.className = 'text-[10px] font-semibold text-slate-400';
         } else if (score <= 1) {
             pwStrengthBar.style.width = '30%';
@@ -202,29 +160,16 @@
         el.classList.remove('hidden');
     }
 
+    // Cached for instant UI paint only; the HttpOnly cookie is the real session.
     function persistSession({ id, name, email, initialKwh }) {
         try {
             localStorage.setItem('sdg12_household_id', id);
             localStorage.setItem('sdg12_display_name', name);
             localStorage.setItem('sdg12_user_email', email || '');
             localStorage.setItem('sdg12_logged_in', '1');
-            if (initialKwh) {
-                localStorage.setItem('sdg12_initial_kwh', String(initialKwh));
-            }
+            localStorage.setItem('sdg12_initial_kwh', String(initialKwh || 300));
         } catch (_) {
             // Storage unavailable
-        }
-    }
-
-    async function syncHousehold(id, displayName) {
-        try {
-            const res = await window.api('/api/households', {
-                method: 'POST',
-                body: JSON.stringify({ id, display_name: displayName }),
-            });
-            return { id: res.id, online: true };
-        } catch (_) {
-            return { id, online: false };
         }
     }
 
@@ -259,8 +204,8 @@
             loginEmail.focus();
             return;
         }
-        if (password.length < 6) {
-            showError(loginError, 'Kata sandi minimal 6 karakter.');
+        if (password.length < 8) {
+            showError(loginError, 'Kata sandi minimal 8 karakter.');
             loginPassword.focus();
             return;
         }
@@ -268,37 +213,17 @@
         submitting = true;
         setButtonLoading(btnLoginSubmit, true, loginIdleHtml, 'Memverifikasi akun…');
         try {
-            const accounts = readAccounts();
-            const account = accounts[email];
-            if (!account) {
-                showError(loginError, 'Email belum terdaftar. Klik "Daftar Sekarang" di panel samping untuk mendaftar.');
-                setButtonLoading(btnLoginSubmit, false, loginIdleHtml);
-                submitting = false;
-                return;
-            }
-
-            const inputHash = await hashPassword(password);
-            if (account.passwordHash !== inputHash) {
-                showError(loginError, 'Kata sandi tidak sesuai. Silakan periksa kembali.');
-                setButtonLoading(btnLoginSubmit, false, loginIdleHtml);
-                submitting = false;
-                loginPassword.focus();
-                return;
-            }
-
-            const synced = await syncHousehold(account.householdId, account.name);
-            persistSession({
-                id: synced.id,
-                name: account.name,
-                email: account.email,
-                initialKwh: account.initialKwh || 300,
+            const user = await window.api('/api/auth/login', {
+                method: 'POST',
+                body: JSON.stringify({ email, password }),
             });
-            completeAndRedirect(
-                account.name,
-                synced.online
-                    ? 'Akun terverifikasi & tersinkron ke server. Membuka dashboard…'
-                    : 'Akun terverifikasi. Membuka dashboard…'
-            );
+            persistSession({
+                id: user.household_id,
+                name: user.display_name || email,
+                email: user.email,
+                initialKwh: readInitialKwh(),
+            });
+            completeAndRedirect(user.display_name || 'Pengguna SaveEnergi', 'Akun terverifikasi. Membuka dashboard…');
         } catch (error) {
             showError(loginError, error.message || 'Gagal memproses login.');
             setButtonLoading(btnLoginSubmit, false, loginIdleHtml);
@@ -328,8 +253,8 @@
             regEmail.focus();
             return;
         }
-        if (password.length < 6) {
-            showError(registerError, 'Kata sandi minimal 6 karakter.');
+        if (password.length < 8) {
+            showError(registerError, 'Kata sandi minimal 8 karakter.');
             regPassword.focus();
             return;
         }
@@ -342,56 +267,26 @@
         submitting = true;
         setButtonLoading(btnRegisterSubmit, true, regIdleHtml, 'Menyiapkan akun baru…');
         try {
-            const accounts = readAccounts();
-            if (accounts[email]) {
-                showError(registerError, 'Email ini sudah terdaftar. Silakan klik "Masuk ke Akun".');
-                setButtonLoading(btnRegisterSubmit, false, regIdleHtml);
-                submitting = false;
-                return;
-            }
-
-            const householdId = generateUuid();
-            const passwordHash = await hashPassword(password);
-            const synced = await syncHousehold(householdId, name);
-
-            accounts[email] = {
-                name,
-                email,
-                passwordHash,
-                householdId: synced.id,
-                initialKwh: selectedInitialKwh,
-            };
-            writeAccounts(accounts);
+            const user = await window.api('/api/auth/register', {
+                method: 'POST',
+                body: JSON.stringify({ email, password, display_name: name }),
+            });
             persistSession({
-                id: synced.id,
-                name,
-                email,
+                id: user.household_id,
+                name: user.display_name || name,
+                email: user.email,
                 initialKwh: selectedInitialKwh,
             });
 
             completeAndRedirect(
-                name,
-                synced.online
-                    ? `Profil awal (${selectedInitialKwh} kWh/bln) tersinkron. Membuka dashboard…`
-                    : `Profil awal (${selectedInitialKwh} kWh/bln) siap. Membuka dashboard…`
+                user.display_name || name,
+                `Profil awal (${selectedInitialKwh} kWh/bln) tersimpan. Membuka dashboard…`
             );
         } catch (error) {
             showError(registerError, error.message || 'Gagal mendaftarkan akun.');
             setButtonLoading(btnRegisterSubmit, false, regIdleHtml);
             submitting = false;
         }
-    });
-
-    // ── Masuk Cepat sebagai Tamu ────────────────────────────────
-    btnGuest.addEventListener('click', async () => {
-        if (submitting) return;
-        submitting = true;
-        btnGuest.disabled = true;
-
-        const id = generateUuid();
-        const synced = await syncHousehold(id, 'Tamu Hemat Energi');
-        persistSession({ id: synced.id, name: 'Tamu Hemat Energi', email: 'tamu@saveenergi.id', initialKwh: 300 });
-        completeAndRedirect('Tamu', 'Masuk cepat berhasil. Membuka dashboard…');
     });
 
     // ── Live Community Preview dari /api/impact ─────────────────
@@ -412,10 +307,24 @@
         }
     })();
 
+    function readInitialKwh() {
+        try {
+            const saved = parseInt(localStorage.getItem('sdg12_initial_kwh') || '', 10);
+            return Number.isNaN(saved) ? 300 : saved;
+        } catch (_) {
+            return 300;
+        }
+    }
+
+    // Sudah punya cookie sesi yang valid? Lewati formulir.
+    window.loadSession().then(() => {
+        window.location.replace('./index.html');
+    }).catch(() => {});
+
     // Prefill email terakhir jika pernah masuk sebelumnya
     try {
         const lastEmail = localStorage.getItem('sdg12_user_email');
-        if (lastEmail && lastEmail !== 'tamu@saveenergi.id') {
+        if (lastEmail) {
             loginEmail.value = lastEmail;
         }
     } catch (_) {

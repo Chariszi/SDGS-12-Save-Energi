@@ -15,8 +15,7 @@ window.updateGlobalScore = function () {
 
 window.refreshScore = async function () {
     try {
-        const householdId = await window.getHouseholdId();
-        const score = await window.api(`/api/households/${householdId}/score`);
+        const score = await window.api('/api/score');
         window.userScore = score.total;
         window.updateGlobalScore();
         return score;

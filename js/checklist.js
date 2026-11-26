@@ -18,7 +18,6 @@
     const badgeIconBox = document.getElementById('badge-icon-box');
     const resetBtn = document.getElementById('reset-pledges-btn');
 
-    let householdId = null;
     let resetPending = false;
     let pendingSaves = 0;
     let stateVersion = 0;
@@ -77,16 +76,14 @@
     }
 
     async function savePledge(code, completed) {
-        householdId ||= await window.getHouseholdId();
         return window.api(`/api/pledges/${code}`, {
             method: 'PUT',
-            body: JSON.stringify({ household_id: householdId, completed }),
+            body: JSON.stringify({ completed }),
         });
     }
 
     async function loadPledges() {
-        householdId ||= await window.getHouseholdId();
-        const pledges = await window.api(`/api/pledges?household_id=${householdId}`);
+        const pledges = await window.api('/api/pledges');
         const byCode = new Map(pledges.map((pledge) => [pledge.code, pledge]));
 
         checkboxes.forEach((chk) => {
