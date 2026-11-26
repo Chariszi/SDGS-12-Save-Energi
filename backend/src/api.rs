@@ -64,6 +64,7 @@ impl CurrentUser {
 pub enum ApiError {
     BadRequest(String),
     Unauthorized(String),
+    Forbidden(String),
     NotFound(String),
     Conflict(String),
     TooManyRequests(String),
@@ -81,6 +82,7 @@ impl IntoResponse for ApiError {
         let (status, message) = match self {
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
             ApiError::Unauthorized(message) => (StatusCode::UNAUTHORIZED, message),
+            ApiError::Forbidden(message) => (StatusCode::FORBIDDEN, message),
             ApiError::NotFound(message) => (StatusCode::NOT_FOUND, message),
             ApiError::Conflict(message) => (StatusCode::CONFLICT, message),
             ApiError::TooManyRequests(message) => (StatusCode::TOO_MANY_REQUESTS, message),

@@ -14,9 +14,9 @@ The site has five stateful features. Everything else is static content or client
 | Energy calculator | Inputs, computed CO₂/cost/grade/recommendations | Latest result per household in `energy_assessments` |
 | Personal score | 20/join + 30/challenge created + pledge points | Derived, never stored |
 
-Email + password login. Each user owns exactly one household, resolved
-server-side from the session cookie; the client never sends a household id for
-writes.
+Email + password login with email verification. Each user owns exactly one
+household, resolved server-side from the session cookie; the client never sends
+a household id for writes.
 
 ## 2. Entities
 
@@ -33,6 +33,7 @@ writes.
 | id | UUID PK | Server-generated |
 | household_id | UUID UNIQUE FK households | `ON DELETE CASCADE`; created with the account |
 | email | TEXT | Stored lowercased, 3–254 chars, unique case-insensitively |
+| email_verified_at | TIMESTAMPTZ NULL | Set when the mailed link is clicked; login is refused while NULL |
 | password_hash | TEXT | Argon2id PHC string, never logged |
 | created_at | TIMESTAMPTZ | Server `now()` |
 
@@ -40,6 +41,11 @@ writes.
 `token_hash` TEXT PK = SHA-256 of the 256-bit cookie token (the raw token is never
 stored), `user_id` FK users `ON DELETE CASCADE`, `expires_at` (14 days),
 `created_at`. Expired rows are purged on login and logout.
+
+### email_verification_tokens
+`token_hash` TEXT PK = SHA-256 of the 256-bit link token (raw token only exists
+in the email), `user_id` FK users `ON DELETE CASCADE`, `expires_at` (24 hours),
+`created_at`. Single use: consumed or replaced on resend; at most one per user.
 
 ### auth_attempts
 Append-only log of login outcomes (`email`, `success`, `attempted_at`). Login is
@@ -105,10 +111,12 @@ Base path `/api`. JSON in/out, camel-free snake_case. Errors: `{ "error": "messa
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
 | GET | `/health` | — | `{status:"ok"}` |
-| POST | `/auth/register` | `{email, password, display_name}` | `{id, household_id, email, display_name}` + session cookie; 409 if email taken |
-| POST | `/auth/login` | `{email, password}` | same user shape + session cookie; 401 wrong credentials, 429 after 8 failures/15 min per email |
+| POST | `/auth/register` | `{email, password, display_name}` | 201 `{email, display_name, verification_required:true}`; emails a verification link; 409 if email taken |
+| POST | `/auth/login` | `{email, password}` | user + session cookie; 401 wrong credentials, 403 unverified email, 429 after 8 failures/15 min per email |
 | POST | `/auth/logout` | — | 204, clears cookie and deletes the session row |
 | GET | `/auth/me` | — | current user; 401 when anonymous |
+| GET | `/auth/verify?token=` | — | consumes the link token, 303 to `/login.html?verified=1` (or `verified=invalid`) |
+| POST | `/auth/resend` | `{email}` | always 204; re-sends the verification link if the account exists, is unverified, and the last token is older than 60 s |
 | GET | `/impact` | — | `{kwh_saved, co2_prevented, households, rp_saved_million, distribution:{listrik,transportasi,terbarukan}}` |
 | GET | `/challenges` | — | challenge array (`id, category, title, description, kwh, co2, location, time, joined, join_count`) newest first, max 200; `joined` reflects the session user |
 | POST | `/challenges` | `{category, title, description, kwh, location}` | 201 challenge; max 20 per household/day (429); 401 anonymous |

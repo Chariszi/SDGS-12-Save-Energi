@@ -3,9 +3,9 @@ use argon2::{
     Argon2,
 };
 use axum::{
-    extract::{rejection::JsonRejection, State},
+    extract::{rejection::JsonRejection, Query, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -20,6 +20,8 @@ const SESSION_COOKIE: &str = "sdg12_session";
 const SESSION_DAYS: i64 = 14;
 const MAX_FAILED_ATTEMPTS: i64 = 8;
 const ATTEMPT_WINDOW_MINUTES: i64 = 15;
+const VERIFICATION_HOURS: i64 = 24;
+const RESEND_COOLDOWN_SECONDS: i64 = 60;
 
 pub fn routes() -> Router<PgPool> {
     Router::new()
@@ -27,6 +29,8 @@ pub fn routes() -> Router<PgPool> {
         .route("/auth/login", post(login))
         .route("/auth/logout", post(logout))
         .route("/auth/me", get(me))
+        .route("/auth/verify", get(verify))
+        .route("/auth/resend", post(resend))
 }
 
 #[derive(Clone, Debug, Serialize, FromRow)]
@@ -70,11 +74,7 @@ fn hash_token(token: &str) -> String {
 }
 
 fn new_session_token() -> String {
-    format!(
-        "{}{}",
-        Uuid::new_v4().simple(),
-        Uuid::new_v4().simple()
-    )
+    format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
 }
 
 fn cookie_value(headers: &HeaderMap) -> Option<String> {
@@ -122,6 +122,26 @@ pub async fn user_from_headers(
     .bind(token_hash)
     .fetch_optional(pool)
     .await
+}
+
+/// Single-use link token: raw value only ever exists in the email, the DB keeps
+/// its SHA-256 hash.
+async fn create_verification_token(pool: &PgPool, user_id: Uuid) -> Result<String, ApiError> {
+    sqlx::query("DELETE FROM email_verification_tokens WHERE user_id = $1 OR expires_at < now()")
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    let token = new_session_token();
+    sqlx::query(
+        "INSERT INTO email_verification_tokens (token_hash, user_id, expires_at)
+         VALUES ($1, $2, now() + ($3 || ' hours')::interval)",
+    )
+    .bind(hash_token(&token))
+    .bind(user_id)
+    .bind(VERIFICATION_HOURS.to_string())
+    .execute(pool)
+    .await?;
+    Ok(token)
 }
 
 async fn create_session(pool: &PgPool, user_id: Uuid) -> Result<String, ApiError> {
@@ -184,10 +204,17 @@ struct RegisterBody {
     display_name: String,
 }
 
+#[derive(Serialize)]
+struct PendingRegistration {
+    email: String,
+    display_name: String,
+    verification_required: bool,
+}
+
 async fn register(
     State(pool): State<PgPool>,
     payload: Result<Json<RegisterBody>, JsonRejection>,
-) -> Result<Response, ApiError> {
+) -> Result<(StatusCode, Json<PendingRegistration>), ApiError> {
     let body = json_body(payload)?;
     let email = clean_email(&body.email)?;
     let password = clean_password(&body.password)?;
@@ -220,17 +247,116 @@ async fn register(
         return Err(ApiError::Conflict("email sudah terdaftar".into()));
     };
     tx.commit().await?;
+    let token = create_verification_token(&pool, user_id).await?;
 
-    let token = create_session(&pool, user_id).await?;
-    Ok(set_cookie_response(
-        AuthUser {
-            id: user_id,
-            household_id,
+    tokio::spawn(crate::mail::send_verification(
+        email.clone(),
+        name.clone(),
+        crate::mail::verification_url(&token),
+    ));
+    Ok((
+        StatusCode::CREATED,
+        Json(PendingRegistration {
             email,
-            display_name: Some(name),
-        },
-        &token,
+            display_name: name,
+            verification_required: true,
+        }),
     ))
+}
+
+#[derive(Deserialize)]
+struct VerifyQuery {
+    token: String,
+}
+
+async fn verify(State(pool): State<PgPool>, Query(query): Query<VerifyQuery>) -> Redirect {
+    let verified = verify_token(&pool, &query.token).await.unwrap_or(false);
+    if verified {
+        Redirect::to("/login.html?verified=1")
+    } else {
+        Redirect::to("/login.html?verified=invalid")
+    }
+}
+
+fn well_formed_token(token: &str) -> bool {
+    token.len() == 64 && token.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+async fn verify_token(pool: &PgPool, token: &str) -> Result<bool, ApiError> {
+    if !well_formed_token(token) {
+        return Ok(false);
+    }
+    let mut tx = pool.begin().await?;
+    let user_id: Option<Uuid> = sqlx::query_scalar(
+        "DELETE FROM email_verification_tokens
+         WHERE token_hash = $1 AND expires_at > now()
+         RETURNING user_id",
+    )
+    .bind(hash_token(token))
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(user_id) = user_id else {
+        tx.rollback().await?;
+        return Ok(false);
+    };
+    sqlx::query(
+        "UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()) WHERE id = $1",
+    )
+    .bind(user_id)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query("DELETE FROM email_verification_tokens WHERE user_id = $1")
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(true)
+}
+
+#[derive(Deserialize)]
+struct ResendBody {
+    email: String,
+}
+
+/// Always 204 so the endpoint cannot be used to probe registered emails.
+async fn resend(
+    State(pool): State<PgPool>,
+    payload: Result<Json<ResendBody>, JsonRejection>,
+) -> Result<StatusCode, ApiError> {
+    let body = json_body(payload)?;
+    let Ok(email) = clean_email(&body.email) else {
+        return Ok(StatusCode::NO_CONTENT);
+    };
+    let row: Option<(Uuid, Option<String>, String)> = sqlx::query_as(
+        "SELECT u.id, h.display_name, u.email
+         FROM users u JOIN households h ON h.id = u.household_id
+         WHERE lower(u.email) = lower($1) AND u.email_verified_at IS NULL",
+    )
+    .bind(&email)
+    .fetch_optional(&pool)
+    .await?;
+
+    if let Some((user_id, display_name, email)) = row {
+        let recent: bool = sqlx::query_scalar(
+            "SELECT EXISTS (
+               SELECT 1 FROM email_verification_tokens
+               WHERE user_id = $1 AND created_at > now() - ($2 || ' seconds')::interval
+             )",
+        )
+        .bind(user_id)
+        .bind(RESEND_COOLDOWN_SECONDS.to_string())
+        .fetch_one(&pool)
+        .await?;
+        if !recent {
+            let token = create_verification_token(&pool, user_id).await?;
+            tokio::spawn(crate::mail::send_verification(
+                email,
+                display_name.unwrap_or_default(),
+                crate::mail::verification_url(&token),
+            ));
+        }
+    }
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize)]
@@ -289,10 +415,12 @@ async fn login(
         email: String,
         password_hash: String,
         display_name: Option<String>,
+        verified: bool,
     }
 
     let stored = sqlx::query_as::<_, StoredUser>(
-        "SELECT u.id, u.household_id, u.email, u.password_hash, h.display_name
+        "SELECT u.id, u.household_id, u.email, u.password_hash, h.display_name,
+                u.email_verified_at IS NOT NULL AS verified
          FROM users u JOIN households h ON h.id = u.household_id
          WHERE lower(u.email) = lower($1)",
     )
@@ -310,6 +438,14 @@ async fn login(
     if !verify_password(&body.password, &stored.password_hash) {
         record_attempt(&pool, &email, false).await?;
         return Err(ApiError::Unauthorized("email atau kata sandi salah".into()));
+    }
+
+    if !stored.verified {
+        // Correct credentials, still not useable until the inbox link is clicked.
+        record_attempt(&pool, &email, true).await?;
+        return Err(ApiError::Forbidden(
+            "email belum diverifikasi, cek tautan di kotak masuk kamu".into(),
+        ));
     }
 
     record_attempt(&pool, &email, true).await?;
@@ -333,11 +469,7 @@ async fn logout(State(pool): State<PgPool>, headers: HeaderMap) -> Result<Respon
             .await?;
     }
     let cleared = session_cookie("", 0);
-    Ok((
-        StatusCode::NO_CONTENT,
-        [(header::SET_COOKIE, cleared)],
-    )
-        .into_response())
+    Ok((StatusCode::NO_CONTENT, [(header::SET_COOKIE, cleared)]).into_response())
 }
 
 async fn me(State(pool): State<PgPool>, headers: HeaderMap) -> Result<Json<AuthUser>, ApiError> {
@@ -358,7 +490,10 @@ mod tests {
 
     #[test]
     fn email_validation_accepts_common_addresses() {
-        assert_eq!(clean_email("  Budi@Example.COM ").unwrap(), "budi@example.com");
+        assert_eq!(
+            clean_email("  Budi@Example.COM ").unwrap(),
+            "budi@example.com"
+        );
         assert!(clean_email("no-at-sign").is_err());
         assert!(clean_email("user@localhost").is_err());
         assert!(clean_email("user@.com").is_err());
@@ -381,6 +516,14 @@ mod tests {
         assert_eq!(a.len(), 64);
         assert_eq!(hash_token(&a).len(), 64);
         assert_ne!(hash_token(&a), a);
+    }
+
+    #[test]
+    fn verification_tokens_must_be_64_hex_chars() {
+        assert!(well_formed_token(&new_session_token()));
+        assert!(!well_formed_token(""));
+        assert!(!well_formed_token("abc"));
+        assert!(!well_formed_token(&"z".repeat(64)));
     }
 
     #[test]

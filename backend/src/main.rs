@@ -1,6 +1,7 @@
 mod api;
 mod auth;
 mod calc;
+mod mail;
 
 use axum::{http::StatusCode, Router};
 use sqlx::postgres::PgPoolOptions;
