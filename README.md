@@ -2,7 +2,7 @@
 
 Static campaign site + Rust/PostgreSQL backend for the SEVENT X software engineering competition.
 
-- `index.html`, `js/` — frontend (Tailwind/Lucide/Chart.js via CDN)
+- `index.html`, `calculator.html`, `js/` — frontend (Tailwind/Lucide/Chart.js via CDN)
 - `backend/` — Axum API + SQLx migrations, serves the frontend
 - `DATA_REQUIREMENTS.md` — entities, invariants, API contract
 

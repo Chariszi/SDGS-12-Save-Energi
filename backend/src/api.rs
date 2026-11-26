@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 
-use crate::calc::AssessmentInput;
+use crate::calc::{AssessmentComparison, AssessmentInput};
 
 const MAX_CHALLENGES_PER_DAY: i64 = 20;
 
@@ -85,7 +85,9 @@ impl IntoResponse for ApiError {
             ApiError::Forbidden(message) => (StatusCode::FORBIDDEN, message),
             ApiError::NotFound(message) => (StatusCode::NOT_FOUND, message),
             ApiError::Conflict(message) => (StatusCode::CONFLICT, message),
-            ApiError::TooManyRequests(message) => (StatusCode::TOO_MANY_REQUESTS, message),
+            ApiError::TooManyRequests(message) => {
+                (StatusCode::TOO_MANY_REQUESTS, message)
+            }
             ApiError::Internal(error) => {
                 eprintln!("database error: {error}");
                 (
@@ -94,15 +96,18 @@ impl IntoResponse for ApiError {
                 )
             }
         };
+
         (status, Json(serde_json::json!({ "error": message }))).into_response()
     }
 }
 
 async fn ensure_household(pool: &PgPool, id: Uuid) -> Result<(), ApiError> {
-    let exists: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM households WHERE id = $1)")
-        .bind(id)
-        .fetch_one(pool)
-        .await?;
+    let exists: bool =
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM households WHERE id = $1)")
+            .bind(id)
+            .fetch_one(pool)
+            .await?;
+
     if exists {
         Ok(())
     } else {
@@ -110,26 +115,35 @@ async fn ensure_household(pool: &PgPool, id: Uuid) -> Result<(), ApiError> {
     }
 }
 
-fn clean(value: &str, field: &str, min: usize, max: usize) -> Result<String, ApiError> {
+fn clean(
+    value: &str,
+    field: &str,
+    min: usize,
+    max: usize,
+) -> Result<String, ApiError> {
     let trimmed = value.trim();
     let length = trimmed.chars().count();
+
     if length < min || length > max {
         return Err(ApiError::BadRequest(format!(
             "{field} must be {min}-{max} characters"
         )));
     }
+
     Ok(trimmed.to_string())
 }
 
-/// Axum's built-in JSON rejection is plain text with a 422 status. Route every
-/// malformed body through the same JSON error envelope as the rest of the API.
-pub(crate) fn json_body<T>(payload: Result<Json<T>, JsonRejection>) -> Result<T, ApiError> {
+/// Route malformed bodies through the same JSON error envelope as the rest of
+/// the API; axum's built-in rejection is plain text with a 422 status.
+pub(crate) fn json_body<T>(
+    payload: Result<Json<T>, JsonRejection>,
+) -> Result<T, ApiError> {
     payload
         .map(|Json(value)| value)
         .map_err(|rejection| ApiError::BadRequest(rejection.body_text()))
 }
 
-// ── Households ────────────────────────────────────────────────
+// ── Score ─────────────────────────────────────────────────────
 
 #[derive(Serialize, FromRow)]
 struct Score {
@@ -175,10 +189,9 @@ struct Distribution {
     terbarukan: i64,
 }
 
-/// Integer percentages that always total 100 or the seeded fallback when there
-/// are no joins. Floors first, then largest remainders absorb the leftover.
 fn distribution_for(rows: &[(String, i64)]) -> Distribution {
     let total: i64 = rows.iter().map(|(_, count)| *count).sum();
+
     if total == 0 {
         return Distribution {
             listrik: 62,
@@ -192,35 +205,50 @@ fn distribution_for(rows: &[(String, i64)]) -> Distribution {
         transportasi: 0,
         terbarukan: 0,
     };
+
     let mut remainders: Vec<(String, f64)> = Vec::new();
 
     for (category, count) in rows {
-        let known = matches!(category.as_str(), "listrik" | "transportasi" | "terbarukan");
-        if !known {
+        if !matches!(
+            category.as_str(),
+            "listrik" | "transportasi" | "terbarukan"
+        ) {
             continue;
         }
+
         let exact = *count as f64 * 100.0 / total as f64;
         let floor = exact.floor() as i64;
+
         match category.as_str() {
             "listrik" => distribution.listrik = floor,
             "transportasi" => distribution.transportasi = floor,
             _ => distribution.terbarukan = floor,
         }
+
         remainders.push((category.clone(), exact - floor as f64));
     }
 
     let mut leftover =
-        100 - (distribution.listrik + distribution.transportasi + distribution.terbarukan);
-    remainders.sort_by(|a, b| b.1.total_cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        100 - (distribution.listrik
+            + distribution.transportasi
+            + distribution.terbarukan);
+
+    remainders.sort_by(|a, b| {
+        b.1.total_cmp(&a.1)
+            .then_with(|| a.0.cmp(&b.0))
+    });
+
     for (category, _) in remainders {
         if leftover <= 0 {
             break;
         }
+
         match category.as_str() {
             "listrik" => distribution.listrik += 1,
             "transportasi" => distribution.transportasi += 1,
             _ => distribution.terbarukan += 1,
         }
+
         leftover -= 1;
     }
 
@@ -243,7 +271,9 @@ struct ImpactTotals {
     households: i64,
 }
 
-async fn get_impact(State(pool): State<PgPool>) -> Result<Json<Impact>, ApiError> {
+async fn get_impact(
+    State(pool): State<PgPool>,
+) -> Result<Json<Impact>, ApiError> {
     let totals = sqlx::query_as::<_, ImpactTotals>(
         "SELECT
            b.kwh_saved + COALESCE((SELECT sum(c.kwh_saved) FROM challenge_joins j
@@ -262,13 +292,15 @@ async fn get_impact(State(pool): State<PgPool>) -> Result<Json<Impact>, ApiError
 
     let rows: Vec<(String, i64)> = sqlx::query_as(
         "SELECT c.category, count(*)
-         FROM challenge_joins j JOIN challenges c ON c.id = j.challenge_id
+         FROM challenge_joins j
+         JOIN challenges c ON c.id = j.challenge_id
          GROUP BY c.category",
     )
     .fetch_all(&pool)
     .await?;
 
-    let total: i64 = rows.iter().map(|(_, count)| count).sum();
+    let total: i64 = rows.iter().map(|(_, count)| *count).sum();
+
     let distribution = if total > 0 {
         distribution_for(&rows)
     } else {
@@ -319,7 +351,8 @@ async fn list_challenges(
                 c.time_label AS time,
                 EXISTS (SELECT 1 FROM challenge_joins j
                         WHERE j.challenge_id = c.id AND j.household_id = $1) AS joined,
-                (SELECT count(*) FROM challenge_joins j WHERE j.challenge_id = c.id) AS join_count
+                (SELECT count(*) FROM challenge_joins j
+                 WHERE j.challenge_id = c.id) AS join_count
          FROM challenges c
          ORDER BY c.created_at DESC, c.id DESC
          LIMIT 200",
@@ -356,9 +389,11 @@ async fn create_challenge(
             "category must be listrik, transportasi, or terbarukan".into(),
         ));
     }
+
     let title = clean(&body.title, "title", 5, 120)?;
     let description = clean(&body.description, "description", 10, 800)?;
     let location = clean(&body.location, "location", 2, 80)?;
+
     if !body.kwh.is_finite() || !(0.1..=100_000.0).contains(&body.kwh) {
         return Err(ApiError::BadRequest(
             "kwh must be between 0.1 and 100000".into(),
@@ -368,13 +403,12 @@ async fn create_challenge(
     let co2 = (body.kwh * 0.85 * 10.0).round() / 10.0;
     let mut tx = pool.begin().await?;
 
-    // Lock the household row so concurrent creates serialize; otherwise two
-    // requests can both observe 19 rows and both insert, defeating the cap.
     let locked: Option<Uuid> =
         sqlx::query_scalar("SELECT id FROM households WHERE id = $1 FOR UPDATE")
             .bind(household_id)
             .fetch_optional(&mut *tx)
             .await?;
+
     if locked.is_none() {
         return Err(ApiError::NotFound("household not found".into()));
     }
@@ -386,6 +420,7 @@ async fn create_challenge(
     .bind(household_id)
     .fetch_one(&mut *tx)
     .await?;
+
     if recent >= MAX_CHALLENGES_PER_DAY {
         return Err(ApiError::TooManyRequests(
             "daily challenge creation limit reached".into(),
@@ -411,6 +446,7 @@ async fn create_challenge(
     .await?;
 
     tx.commit().await?;
+
     Ok((StatusCode::CREATED, Json(challenge)))
 }
 
@@ -431,10 +467,12 @@ async fn join_challenge(
     let household_id = user.household_id()?;
     ensure_household(&pool, household_id).await?;
 
-    let exists: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM challenges WHERE id = $1)")
-        .bind(id)
-        .fetch_one(&pool)
-        .await?;
+    let exists: bool =
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM challenges WHERE id = $1)")
+            .bind(id)
+            .fetch_one(&pool)
+            .await?;
+
     if !exists {
         return Err(ApiError::NotFound("challenge not found".into()));
     }
@@ -481,7 +519,8 @@ async fn list_pledges(
         "SELECT p.code, p.title, p.description, p.category, p.points,
                 EXISTS (SELECT 1 FROM pledge_completions pc
                         WHERE pc.household_id = $1 AND pc.pledge_code = p.code) AS completed
-         FROM pledges p ORDER BY p.sort_order",
+         FROM pledges p
+         ORDER BY p.sort_order",
     )
     .bind(household_id)
     .fetch_all(&pool)
@@ -512,10 +551,12 @@ async fn set_pledge(
     let household_id = user.household_id()?;
     ensure_household(&pool, household_id).await?;
 
-    let points: Option<i16> = sqlx::query_scalar("SELECT points FROM pledges WHERE code = $1")
-        .bind(&code)
-        .fetch_optional(&pool)
-        .await?;
+    let points: Option<i16> =
+        sqlx::query_scalar("SELECT points FROM pledges WHERE code = $1")
+            .bind(&code)
+            .fetch_optional(&pool)
+            .await?;
+
     let Some(points) = points else {
         return Err(ApiError::NotFound("pledge not found".into()));
     };
@@ -531,11 +572,14 @@ async fn set_pledge(
         .execute(&pool)
         .await?;
     } else {
-        sqlx::query("DELETE FROM pledge_completions WHERE household_id = $1 AND pledge_code = $2")
-            .bind(household_id)
-            .bind(&code)
-            .execute(&pool)
-            .await?;
+        sqlx::query(
+            "DELETE FROM pledge_completions
+             WHERE household_id = $1 AND pledge_code = $2",
+        )
+        .bind(household_id)
+        .bind(&code)
+        .execute(&pool)
+        .await?;
     }
 
     Ok(Json(PledgeOutcome {
@@ -560,7 +604,7 @@ async fn create_assessment(
     State(pool): State<PgPool>,
     Extension(user): Extension<CurrentUser>,
     payload: Result<Json<AssessmentBody>, JsonRejection>,
-) -> Result<Json<crate::calc::Assessment>, ApiError> {
+) -> Result<Json<AssessmentComparison>, ApiError> {
     let body = json_body(payload)?;
     let household_id = user.household_id()?;
     ensure_household(&pool, household_id).await?;
@@ -572,9 +616,13 @@ async fn create_assessment(
         led: body.led,
         unplug: body.unplug,
     };
-    input.validate().map_err(ApiError::BadRequest)?;
-    let result = input.calculate();
 
+    input.validate().map_err(ApiError::BadRequest)?;
+
+    // Calculate both the current and improved scenarios.
+    let result = input.calculate_comparison();
+
+    // Persist the user's actual/current assessment, not the simulation.
     sqlx::query(
         "INSERT INTO energy_assessments
            (household_id, kwh_monthly, ac_hours, transport, led, unplug,
@@ -598,15 +646,17 @@ async fn create_assessment(
     .bind(input.transport.as_str())
     .bind(input.led)
     .bind(input.unplug)
-    .bind(result.effective_kwh)
-    .bind(result.total_co2_kg)
-    .bind(result.cost_rp)
-    .bind(&result.grade)
+    .bind(result.before.effective_kwh)
+    .bind(result.before.total_co2_kg)
+    .bind(result.before.cost_rp)
+    .bind(&result.before.grade)
     .execute(&pool)
     .await?;
 
     Ok(Json(result))
 }
+
+// ── Tests ─────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -620,12 +670,15 @@ mod tests {
     }
 
     fn total(distribution: &Distribution) -> i64 {
-        distribution.listrik + distribution.transportasi + distribution.terbarukan
+        distribution.listrik
+            + distribution.transportasi
+            + distribution.terbarukan
     }
 
     #[test]
     fn distribution_falls_back_without_joins() {
         let distribution = distribution_for(&[]);
+
         assert_eq!(distribution.listrik, 62);
         assert_eq!(distribution.transportasi, 25);
         assert_eq!(distribution.terbarukan, 13);
@@ -633,7 +686,9 @@ mod tests {
 
     #[test]
     fn half_split_totals_exactly_100() {
-        let distribution = distribution_for(&rows(&[("listrik", 1), ("transportasi", 7)]));
+        let distribution =
+            distribution_for(&rows(&[("listrik", 1), ("transportasi", 7)]));
+
         assert_eq!(total(&distribution), 100);
         assert_eq!(distribution.terbarukan, 0);
         assert_eq!(distribution.listrik, 13);
@@ -647,6 +702,7 @@ mod tests {
             ("transportasi", 2),
             ("terbarukan", 1),
         ]));
+
         assert_eq!(total(&distribution), 100);
         assert!(distribution.listrik > 0);
         assert!(distribution.transportasi > 0);
@@ -656,6 +712,7 @@ mod tests {
     #[test]
     fn single_category_gets_100() {
         let distribution = distribution_for(&rows(&[("terbarukan", 3)]));
+
         assert_eq!(total(&distribution), 100);
         assert_eq!(distribution.terbarukan, 100);
     }

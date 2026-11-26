@@ -10,8 +10,8 @@ The site has five stateful features. Everything else is static content or client
 |---|---|---|
 | Community impact ticker + dashboard | kWh saved, CO₂ prevented, households, Rp saved, category distribution | Aggregated from baseline + live rows |
 | Challenge board | Challenge cards, join state, join count | `challenges`, `challenge_joins` |
-| Daily action checklist | Six actions, completion state, pledge points | `pledges`, `pledge_completions` |
-| Energy calculator | Inputs, computed CO₂/cost/grade/recommendations | Latest result per household in `energy_assessments` |
+| Daily action checklist (`calculator.html#aksi`) | Six actions, completion state, pledge points | `pledges`, `pledge_completions` |
+| Energy calculator (`calculator.html`) | Inputs, before/after comparison (kWh, CO₂, cost, trees), recommendations | Latest "before" result per household in `energy_assessments` |
 | Personal score | 20/join + 30/challenge created + pledge points | Derived, never stored |
 
 Email + password login with email verification. Each user owns exactly one
@@ -123,7 +123,7 @@ Base path `/api`. JSON in/out, camel-free snake_case. Errors: `{ "error": "messa
 | POST | `/challenges/{id}/join` | — | `{joined:true, awarded:bool}`; idempotent; 401 anonymous |
 | GET | `/pledges` | — | pledge array with `completed` for the session user |
 | PUT | `/pledges/{code}` | `{completed}` | `{code, completed, points}`; 401 anonymous |
-| POST | `/assessments` | `{kwh_monthly, ac_hours, transport, led, unplug}` | computed result + `recommendations[]`; 401 anonymous |
+| POST | `/assessments` | `{kwh_monthly, ac_hours, transport, led, unplug}` | `{before, after, saved_kwh, saved_co2_kg, saved_cost_rp, saved_cost_yearly_rp, saved_trees}`; the improved scenario forces LED, unplug, and AC ≤ 8 h; only `before` is persisted; 401 anonymous |
 | GET | `/score` | — | `{total, challenges_joined, challenges_created, pledge_points}`; 401 anonymous |
 
 Validation is server-side at every boundary. Values are range/enum checked, strings trimmed and length checked, SQL is parameterized, JSON body capped at 16 KiB. `GET /api/impact` and the challenge/pledge listings are public; every write requires a session, and ownership comes from the session cookie, never the request body.
@@ -131,7 +131,7 @@ Validation is server-side at every boundary. Values are range/enum checked, stri
 ## 5. Seed data
 
 - 6 challenge rows matching the original `challenges.js` fixtures.
-- 6 pledge rows matching the checklist in `index.html`.
+- 6 pledge rows matching the checklist in `calculator.html`.
 - `community_baseline`: `3890 kWh`, `6412 kg CO₂e`, `1248 households`.
 
 Seed rows are labelled as campaign baseline, not measured results.

@@ -32,6 +32,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route_service("/index.html", ServeFile::new(format!("{frontend}/index.html")))
         .route_service("/login", ServeFile::new(format!("{frontend}/login.html")))
         .route_service("/login.html", ServeFile::new(format!("{frontend}/login.html")))
+        .route_service(
+            "/calculator.html",
+            ServeFile::new(format!("{frontend}/calculator.html")),
+        )
         .nest_service("/js", ServeDir::new(format!("{frontend}/js")))
         .fallback(|| async { (StatusCode::NOT_FOUND, "Not found") });
 
