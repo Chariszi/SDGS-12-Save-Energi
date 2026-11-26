@@ -31,7 +31,9 @@
     const loginEmail = document.getElementById('login-email');
     const loginPassword = document.getElementById('login-password');
     const loginError = document.getElementById('login-error');
+    const loginNotice = document.getElementById('login-notice');
     const btnLoginSubmit = document.getElementById('btn-login-submit');
+    const btnResend = document.getElementById('btn-resend-verification');
     const linkToRegister = document.getElementById('link-to-register');
     const linkToLogin = document.getElementById('link-to-login');
 
@@ -40,6 +42,7 @@
     const regPassword = document.getElementById('reg-password');
     const regPasswordConfirm = document.getElementById('reg-password-confirm');
     const registerError = document.getElementById('register-error');
+    const registerNotice = document.getElementById('register-notice');
     const btnRegisterSubmit = document.getElementById('btn-register-submit');
     const pwStrengthBar = document.getElementById('pw-strength-bar');
     const pwStrengthLabel = document.getElementById('pw-strength-label');
@@ -77,6 +80,8 @@
 
         loginError.classList.add('hidden');
         registerError.classList.add('hidden');
+        if (loginNotice) loginNotice.classList.add('hidden');
+        if (registerNotice) registerNotice.classList.add('hidden');
 
         // Fokuskan input pertama setelah panel mulai meluncur
         setTimeout(() => {
@@ -160,6 +165,16 @@
         el.classList.remove('hidden');
     }
 
+    function showNotice(el, msg) {
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.remove('hidden');
+    }
+
+    function hideResend() {
+        if (btnResend) btnResend.classList.add('hidden');
+    }
+
     // Cached for instant UI paint only; the HttpOnly cookie is the real session.
     function persistSession({ id, name, email, initialKwh }) {
         try {
@@ -195,6 +210,8 @@
         event.preventDefault();
         if (submitting) return;
         loginError.classList.add('hidden');
+        if (loginNotice) loginNotice.classList.add('hidden');
+        hideResend();
 
         const email = loginEmail.value.trim().toLowerCase();
         const password = loginPassword.value;
@@ -226,10 +243,39 @@
             completeAndRedirect(user.display_name || 'Pengguna SaveEnergi', 'Akun terverifikasi. Membuka dashboard…');
         } catch (error) {
             showError(loginError, error.message || 'Gagal memproses login.');
+            if (error.status === 403 && btnResend) {
+                btnResend.classList.remove('hidden');
+            }
             setButtonLoading(btnLoginSubmit, false, loginIdleHtml);
             submitting = false;
         }
     });
+
+    // ── Kirim Ulang Email Verifikasi ────────────────────────────
+    if (btnResend) {
+        btnResend.addEventListener('click', async () => {
+            const email = loginEmail.value.trim().toLowerCase();
+            if (!EMAIL_RE.test(email)) {
+                showError(loginError, 'Masukkan alamat email akun kamu terlebih dahulu.');
+                loginEmail.focus();
+                return;
+            }
+            btnResend.disabled = true;
+            try {
+                await window.api('/api/auth/resend', {
+                    method: 'POST',
+                    body: JSON.stringify({ email }),
+                });
+                loginError.classList.add('hidden');
+                hideResend();
+                showNotice(loginNotice, 'Jika email terdaftar dan belum diverifikasi, tautan baru sudah dikirim. Cek kotak masuk atau folder spam.');
+            } catch (error) {
+                showError(loginError, error.message || 'Gagal mengirim ulang email verifikasi.');
+            } finally {
+                btnResend.disabled = false;
+            }
+        });
+    }
 
     // ── Form 2: Daftar Akun Baru (Onboarding Pertama Kali) ─────
     const regIdleHtml = btnRegisterSubmit.innerHTML;
@@ -267,21 +313,25 @@
         submitting = true;
         setButtonLoading(btnRegisterSubmit, true, regIdleHtml, 'Menyiapkan akun baru…');
         try {
-            const user = await window.api('/api/auth/register', {
+            await window.api('/api/auth/register', {
                 method: 'POST',
                 body: JSON.stringify({ email, password, display_name: name }),
             });
-            persistSession({
-                id: user.household_id,
-                name: user.display_name || name,
-                email: user.email,
-                initialKwh: selectedInitialKwh,
-            });
-
-            completeAndRedirect(
-                user.display_name || name,
-                `Profil awal (${selectedInitialKwh} kWh/bln) tersimpan. Membuka dashboard…`
+            try {
+                localStorage.setItem('sdg12_initial_kwh', String(selectedInitialKwh));
+            } catch (_) {
+                // ignore storage errors
+            }
+            registerError.classList.add('hidden');
+            showNotice(
+                registerNotice,
+                `Akun dibuat. Tautan verifikasi sudah dikirim ke ${email}. Buka email itu dulu, lalu masuk.`
             );
+            loginEmail.value = email;
+            submitting = false;
+            setButtonLoading(btnRegisterSubmit, false, regIdleHtml);
+            registerForm.reset();
+            selectedInitialKwh = 300;
         } catch (error) {
             showError(registerError, error.message || 'Gagal mendaftarkan akun.');
             setButtonLoading(btnRegisterSubmit, false, regIdleHtml);
@@ -320,6 +370,15 @@
     window.loadSession().then(() => {
         window.location.replace('./index.html');
     }).catch(() => {});
+
+    // Hasil klik tautan verifikasi dari email.
+    const verifyState = new URLSearchParams(window.location.search).get('verified');
+    if (verifyState === '1') {
+        showNotice(loginNotice, 'Email berhasil diverifikasi. Silakan masuk dengan kata sandi kamu.');
+    } else if (verifyState === 'invalid') {
+        showError(loginError, 'Tautan verifikasi tidak valid atau sudah kedaluwarsa. Minta tautan baru di bawah.');
+        if (btnResend) btnResend.classList.remove('hidden');
+    }
 
     // Prefill email terakhir jika pernah masuk sebelumnya
     try {
