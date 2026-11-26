@@ -10,7 +10,13 @@ use tower_http::services::{ServeDir, ServeFile};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenvy::dotenv().ok();
+    // A malformed .env line aborts parsing at that line; surface it instead of
+    // silently running with half the configuration (e.g. no SMTP_PASSWORD).
+    if let Err(error) = dotenvy::dotenv() {
+        if !matches!(error, dotenvy::Error::Io(_)) {
+            eprintln!("warning: could not load .env: {error}");
+        }
+    }
 
     let database_url = std::env::var("DATABASE_URL")?;
     let pool = PgPoolOptions::new()

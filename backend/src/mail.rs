@@ -36,6 +36,9 @@ fn send_blocking(email: &str, display_name: &str, link: &str) -> Result<(), Stri
         return Ok(());
     };
 
+    // Google shows app passwords as "xxxx xxxx xxxx xxxx"; the spaces are
+    // display-only, so strip all whitespace before authenticating.
+    let password: String = password.split_whitespace().collect();
     let host = std::env::var("SMTP_HOST").unwrap_or_else(|_| "smtp.gmail.com".to_string());
     let port: u16 = std::env::var("SMTP_PORT")
         .ok()
